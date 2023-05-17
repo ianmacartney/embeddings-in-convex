@@ -10,6 +10,10 @@
  */
 
 import type { ApiFromModules } from "convex/api";
+import type * as lib_migrations from "../lib/migrations";
+import type * as lib_relationships from "../lib/relationships";
+import type * as lib_rowLevelSecurity from "../lib/rowLevelSecurity";
+import type * as pinecone from "../pinecone";
 
 /**
  * A type describing your app's public Convex API.
@@ -20,4 +24,9 @@ import type { ApiFromModules } from "convex/api";
  * This type should be used with type-parameterized classes like
  * `ConvexReactClient` to create app-specific types.
  */
-export type API = ApiFromModules<{}>;
+export type API = ApiFromModules<{
+  "lib/migrations": typeof lib_migrations;
+  "lib/relationships": typeof lib_relationships;
+  "lib/rowLevelSecurity": typeof lib_rowLevelSecurity;
+  pinecone: typeof pinecone;
+}>;

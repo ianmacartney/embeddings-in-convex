@@ -1,14 +1,14 @@
 import { v } from "convex/values";
 import { defineSchema, defineTable } from "convex/schema";
 
-const document = v.object({});
+const document = v.object({ body: v.string(), name: v.string() });
 const excerpt = v.object({
   document_id: v.id("documents"),
   text: v.string(),
   index: v.number(),
 });
 
-defineSchema({
+export default defineSchema({
   documents: defineTable(document),
   excerpts: defineTable(excerpt),
 });
