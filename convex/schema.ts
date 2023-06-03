@@ -1,16 +1,53 @@
-import { v } from "convex/values";
+import { Infer, v } from "convex/values";
 import { defineSchema, defineTable } from "convex/schema";
 
-const document = v.object({ body: v.string(), name: v.string() });
-const excerpt = v.object({
-  document_id: v.id("documents"),
-  text: v.string(),
-  index: v.number(),
+const text = v.object({
+  // raw text - should be < 1M.
+  inline: v.optional(v.string()),
+  // Text from a file.
+  file: v.optional(
+    v.object({
+      storageId: v.string(),
+      // What subset of the file to use.
+      range: v.optional(
+        v.object({
+          start: v.number(), // inclusive
+          end: v.number(), // exclusive
+        })
+      ),
+    })
+  ),
+  embeddingId: v.optional(v.id("embeddings")),
+
+  // sourceId: v.id("sources"),
+  // // Where in a larger document is this text.
+  // chunkIndex: v.optional(v.number()),
 });
+export type Text = Infer<typeof text>;
+
+// const source = v.object({
+//   name: v.string(),
+//   chunks: v.array(v.id("text")),
+// });
+
+// const embedding = v.object({});
 
 export default defineSchema({
-  documents: defineTable(document),
-  excerpts: defineTable(excerpt),
+  // sources: defineTable(source),
+  // questions: defineTable({
+  // textId: v.id("texts"),
+  // }),
+  texts: defineTable(text),
+  embeddings: defineTable({
+    vector: v.bytes(),
+  }),
+  embeddingStats: defineTable({
+    embeddingId: v.id("embeddings"),
+    numTexts: v.number(),
+    totalTokens: v.number(),
+    totalLength: v.number(),
+    elapsedMs: v.number(),
+  }),
 });
 
 // const llmMessage = v.object({

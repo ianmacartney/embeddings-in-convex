@@ -10,14 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "convex": "^0.14.1",
+    "convex": "^0.15.1",
     "openai": "^3.2.1",
     "pinecone-client": "^1.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@types/node": "^20.1.7",
+    "@types/node": "^20.2.3",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
     "@typescript-eslint/eslint-plugin": "^5.57.1",
