@@ -3,7 +3,7 @@ import { defineSchema, defineTable } from "convex/schema";
 
 const text = v.object({
   // raw text - should be < 1M.
-  inline: v.string(),
+  raw: v.string(),
 
   // sourceId: v.id("sources"),
   // // Where in a larger document is this text.
@@ -16,25 +16,27 @@ export type Text = Infer<typeof text>;
 //   chunks: v.array(v.id("text")),
 // });
 
-// const embedding = v.object({});
-
-export default defineSchema({
-  // sources: defineTable(source),
-  // questions: defineTable({
-  // textId: v.id("texts"),
-  // }),
-  texts: defineTable(text),
-  embeddings: defineTable({
-    vector: v.bytes(),
-  }),
-  embeddingStats: defineTable({
-    embeddingId: v.id("embeddings"),
-    numTexts: v.number(),
-    totalTokens: v.number(),
-    totalLength: v.number(),
-    elapsedMs: v.number(),
-  }),
-});
+export default defineSchema(
+  {
+    // sources: defineTable(source),
+    // questions: defineTable({
+    // textId: v.id("texts"),
+    // }),
+    texts: defineTable(text),
+    vectors: defineTable({
+      float32Buffer: v.bytes(),
+      textId: v.id("texts"),
+    }),
+    embeddingStats: defineTable({
+      vectorId: v.id("vectors"),
+      numTexts: v.number(),
+      totalTokens: v.number(),
+      totalLength: v.number(),
+      elapsedMs: v.number(),
+    }),
+  },
+  { schemaValidation: false }
+);
 
 // const llmMessage = v.object({
 //     a:v.optional(v.string()),
