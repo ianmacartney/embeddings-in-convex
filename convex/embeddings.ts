@@ -5,7 +5,6 @@ import {
   internalMutation,
   query,
 } from "./_generated/server";
-import { getRawText } from "./texts";
 
 export async function fetchEmbeddingBatch(texts: string[]) {
   console.log("getting embeddings for ", texts);
@@ -59,8 +58,7 @@ export const create = action(
     { textId }: { textId: Id<"texts"> }
   ) => {
     const textDoc = await runQuery("texts:get", { textId });
-    const rawText = await getRawText(storage, textDoc);
-    const { embedding, stats } = await fetchEmbedding(rawText);
+    const { embedding, stats } = await fetchEmbedding(textDoc.inline!);
     await runMutation("embeddings:saveEmbedding", { textId, embedding, stats });
 
     console.log(embedding);

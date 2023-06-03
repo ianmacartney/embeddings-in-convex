@@ -3,21 +3,7 @@ import { defineSchema, defineTable } from "convex/schema";
 
 const text = v.object({
   // raw text - should be < 1M.
-  inline: v.optional(v.string()),
-  // Text from a file.
-  file: v.optional(
-    v.object({
-      storageId: v.string(),
-      // What subset of the file to use.
-      range: v.optional(
-        v.object({
-          start: v.number(), // inclusive
-          end: v.number(), // exclusive
-        })
-      ),
-    })
-  ),
-  embeddingId: v.optional(v.id("embeddings")),
+  inline: v.string(),
 
   // sourceId: v.id("sources"),
   // // Where in a larger document is this text.

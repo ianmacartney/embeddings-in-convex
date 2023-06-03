@@ -45,29 +45,3 @@ export const create = mutation(async ({ db, scheduler }, text: Text) => {
   await scheduler.runAfter(0, "embeddings:create", { textId });
   return textId;
 });
-
-export const upload = httpAction(async ({ storage, runMutation }, request) => {
-  const storageId = await storage.store(await request.blob());
-  const textId = await runMutation("texts:create", { file: { storageId } });
-  return new Response(textId.toString(), { status: 201 });
-});
-
-export async function getRawText(
-  storage: StorageActionWriter,
-  textDoc: Doc<"texts">
-) {
-  if (textDoc.inline) {
-    return textDoc.inline;
-  } else if (textDoc.file) {
-    const blob = await storage.get(textDoc.file.storageId);
-    if (!blob) {
-      throw new Error(`StorageId(${textDoc.file.storageId}) not found`);
-    }
-    let text = await blob.text();
-    if (textDoc.file.range) {
-      text = text.slice(textDoc.file.range.start, textDoc.file.range.end);
-    }
-    return text;
-  }
-  throw new Error("Unknown text format for " + textDoc._id);
-}
