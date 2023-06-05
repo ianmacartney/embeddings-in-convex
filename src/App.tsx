@@ -30,7 +30,7 @@ function App() {
       <h1>Semantic Comparison</h1>
       {target && (
         <>
-          <h2>Looking for:</h2>
+          <h2>Comparing to:</h2>
           <span>{target.text.substring(0, 100)}</span>
           <h2>Results</h2>
         </>
