@@ -1,6 +1,5 @@
 import { Id } from "./_generated/dataModel";
-import { internalQuery, mutation, query } from "./_generated/server";
-import { Text } from "./schema";
+import { internalQuery, query } from "./_generated/server";
 
 export const get = internalQuery(
   async ({ db }, { textId }: { textId: Id<"texts"> }) => {
@@ -15,11 +14,3 @@ export const get = internalQuery(
 export const all = query(async ({ db }) => {
   return await db.query("texts").collect();
 });
-
-export const add = mutation(
-  async ({ db, scheduler }, { text }: { text: string }) => {
-    const textId = await db.insert("texts", { raw: text });
-    await scheduler.runAfter(0, "embeddings:create", { textId });
-    return textId;
-  }
-);

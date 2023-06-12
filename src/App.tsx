@@ -1,9 +1,33 @@
-import { useMemo, useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
+import { useState } from "react";
 import "./App.css";
-import { Doc, Id } from "../convex/_generated/dataModel";
-import { useMutation, useQuery } from "../convex/_generated/react";
+import { Id } from "../convex/_generated/dataModel";
+import { useAction, useQuery } from "../convex/_generated/react";
+
+function AddSource() {
+  const [newText, setNewText] = useState("");
+  const addText = useAction("embeddings:create");
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        addText({
+          text: newText,
+        });
+        setNewText("");
+      }}
+    >
+      <input
+        type="text"
+        name="text"
+        onChange={(e) => setNewText(e.target.value)}
+        value={newText}
+      />
+      <button type="submit" disabled={!newText}>
+        Add text
+      </button>
+    </form>
+  );
+}
 
 function App() {
   const [target, setTarget] = useState<{
@@ -11,8 +35,6 @@ function App() {
     text: string;
   }>();
   const texts = useQuery("texts:all") ?? [];
-  const [newText, setNewText] = useState("");
-  const addText = useMutation("texts:add");
   const scores = useQuery("embeddings:compareTo", {
     vectorId: target?.vectorId,
   });
@@ -21,7 +43,7 @@ function App() {
     ? scores.map(({ textId, score, vectorId }) => ({
         score,
         vectorId,
-        text: textById(textId)!.raw,
+        text: textById(textId)?.raw ?? "???",
       }))
     : [];
 
@@ -48,25 +70,7 @@ function App() {
           ))}
         </ol>
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          addText({
-            text: newText,
-          });
-          setNewText("");
-        }}
-      >
-        <input
-          type="text"
-          name="text"
-          onChange={(e) => setNewText(e.target.value)}
-          value={newText}
-        />
-        <button type="submit" disabled={!newText}>
-          Add text
-        </button>
-      </form>
+      <AddSource />
     </>
   );
 }

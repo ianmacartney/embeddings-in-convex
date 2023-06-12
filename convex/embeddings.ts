@@ -2,7 +2,6 @@ import { Id } from "./_generated/dataModel";
 import { action, internalMutation, query } from "./_generated/server";
 
 export async function fetchEmbeddingBatch(texts: string[]) {
-  console.log("getting embeddings for ", texts);
   const start = Date.now();
   const result = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
@@ -48,11 +47,10 @@ export async function fetchEmbedding(text: string) {
 }
 
 export const create = action(
-  async ({ runMutation, runQuery }, { textId }: { textId: Id<"texts"> }) => {
-    const textDoc = await runQuery("texts:get", { textId });
-    const { embedding, stats } = await fetchEmbedding(textDoc.raw);
+  async ({ runMutation }, { text }: { text: string }) => {
+    const { embedding, stats } = await fetchEmbedding(text);
     await runMutation("embeddings:saveEmbedding", {
-      textId,
+      text,
       float32Buffer: embedding.buffer,
       stats,
     });
@@ -102,11 +100,11 @@ export const saveEmbedding = internalMutation(
   async (
     { db },
     {
-      textId,
+      text,
       float32Buffer,
       stats,
     }: {
-      textId: Id<"texts">;
+      text: string;
       float32Buffer: ArrayBuffer;
       stats: {
         numTexts: number;
@@ -116,6 +114,7 @@ export const saveEmbedding = internalMutation(
       };
     }
   ) => {
+    const textId = await db.insert("texts", { raw: text });
     const vectorId = await db.insert("vectors", {
       float32Buffer,
       textId,
