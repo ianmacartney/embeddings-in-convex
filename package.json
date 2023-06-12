@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "convex": "^0.15.1",
+    "convex": "^0.16.1",
     "openai": "^3.2.1",
     "pinecone-client": "^1.1.0",
     "react": "^18.2.0",
