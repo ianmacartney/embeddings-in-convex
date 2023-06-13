@@ -1,18 +1,35 @@
 import { useState } from "react";
 import "./App.css";
-import { Id } from "../convex/_generated/dataModel";
-import { useAction, useQuery } from "../convex/_generated/react";
+import { Doc, Id } from "../convex/_generated/dataModel";
+import {
+  useAction,
+  usePaginatedQuery,
+  useQuery,
+} from "../convex/_generated/react";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 function AddSource() {
   const [newText, setNewText] = useState("");
-  const addText = useAction("embeddings:create");
+  const [name, setName] = useState("");
+  const createSource = useAction("pinecone:createSource");
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        addText({
-          text: newText,
+        const textSplitter = new RecursiveCharacterTextSplitter({
+          chunkSize: 1000,
         });
+        textSplitter.createDocuments([newText]).then((docs) => {
+          createSource({
+            name,
+            chunks: docs.map((doc) => ({
+              text: doc.pageContent,
+              lines: doc.metadata.loc.lines,
+            })),
+          });
+        });
+        setName("");
         setNewText("");
       }}
     >
@@ -22,54 +39,162 @@ function AddSource() {
         onChange={(e) => setNewText(e.target.value)}
         value={newText}
       />
-      <button type="submit" disabled={!newText}>
+      <input
+        type="text"
+        name="name"
+        onChange={(e) => setName(e.target.value)}
+        value={name}
+      />
+      <button type="submit" disabled={!newText || !name}>
         Add text
       </button>
     </form>
   );
 }
 
+function Sources({ sources }: { sources: Doc<"sources">[] }) {
+  const chunks =
+    useQuery("chunks:getAll", { ids: sources.map((s) => s.chunkIds[0]) }) ?? [];
+  return (
+    <ul role="list" className="divide-y divide-gray-100">
+      {sources.map((source) => (
+        <li key={source._id.toString()} className="flex gap-x-4 py-5">
+          <div className="flex-auto">
+            <div className="flex items-baseline justify-between gap-x-4">
+              <p className="text-sm font-semibold leading-6 text-gray-900">
+                {source.name}
+              </p>
+              <p className="flex-none text-xs text-gray-600">
+                {chunks.find((c) => c._id.equals(source.chunkIds[0]))?.text}
+              </p>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AllSources() {
+  const {
+    status,
+    loadMore,
+    results: sources,
+  } = usePaginatedQuery("sources:paginate", {}, { initialNumItems: 10 });
+  return (
+    <>
+      <Sources sources={sources} />
+      {status !== "Exhausted" && (
+        <button
+          onClick={() => loadMore(10)}
+          disabled={status !== "CanLoadMore"}
+        >
+          Load More
+        </button>
+      )}
+    </>
+  );
+}
+
+function Search({
+  setTarget,
+}: {
+  setTarget: (t: { text: string; searchId: Id<"searches"> }) => void;
+}) {
+  const [input, setSearch] = useState("");
+  const addSearch = useAction("pinecone:addSearch");
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        addSearch({
+          input,
+        }).then((searchId) => setTarget({ text: input, searchId }));
+        setSearch("");
+      }}
+    >
+      <input
+        type="text"
+        name="text"
+        onChange={(e) => setSearch(e.target.value)}
+        value={input}
+      />
+      <button type="submit" disabled={!input}>
+        Search
+      </button>
+    </form>
+  );
+}
+
+function Chunks({
+  chunks,
+}: {
+  chunks: (Doc<"chunks"> & { sourceName: string; score?: number })[];
+}) {
+  return (
+    <ul role="list" className="divide-y divide-gray-100">
+      {chunks.map((chunk) => (
+        <li key={chunk._id.toString()} className="flex gap-x-4 py-5">
+          <div className="flex-auto">
+            <div className="flex items-baseline justify-between gap-x-4">
+              <p className="text-sm font-semibold leading-6 text-gray-900">
+                {chunk.sourceName} {chunk.chunkIndex} {chunk.score}
+              </p>
+              <p className="flex-none text-xs text-gray-600">{chunk.text}</p>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Results({ searchId }: { searchId: Id<"searches"> }) {
+  const semantic = useQuery("searches:semanticSearch", { searchId }) ?? [];
+  const {
+    status,
+    loadMore,
+    results: wordBased,
+  } = usePaginatedQuery(
+    "searches:wordSearch",
+    { searchId },
+    { initialNumItems: 10 }
+  );
+  return (
+    <>
+      <h2>Semantic</h2>
+      <Chunks chunks={semantic} />
+      <h2>Word-Based</h2>
+      <Chunks chunks={wordBased} />
+      {status !== "Exhausted" && (
+        <button
+          onClick={() => loadMore(10)}
+          disabled={status !== "CanLoadMore"}
+        >
+          Load More
+        </button>
+      )}
+    </>
+  );
+}
+
 function App() {
   const [target, setTarget] = useState<{
-    vectorId: Id<"vectors">;
+    searchId: Id<"searches">;
     text: string;
   }>();
-  const texts = useQuery("texts:all") ?? [];
-  const scores = useQuery("embeddings:compareTo", {
-    vectorId: target?.vectorId,
-  });
-  const textById = (id: Id<"texts">) => texts.find((t) => t._id.equals(id));
-  const scored = scores
-    ? scores.map(({ textId, score, vectorId }) => ({
-        score,
-        vectorId,
-        text: textById(textId)?.raw ?? "???",
-      }))
-    : [];
 
   return (
     <>
-      <h1>Semantic Comparison</h1>
+      <h1>Search</h1>
+      <Search setTarget={setTarget} />
       {target && (
         <>
-          <h2>Comparing to:</h2>
+          <h2>Query:</h2>
           <span>{target.text.substring(0, 100)}</span>
-          <h2>Results</h2>
+          <Results searchId={target.searchId} />
         </>
       )}
-      <div>
-        <ol>
-          {scored.map(({ score, text, vectorId }) => (
-            <li key={text}>
-              {score && score.toFixed(3)}
-              <span>{text}</span>
-              <button onClick={() => setTarget({ text, vectorId })}>
-                Compare to this
-              </button>
-            </li>
-          ))}
-        </ol>
-      </div>
       <AddSource />
     </>
   );

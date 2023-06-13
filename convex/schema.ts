@@ -2,19 +2,37 @@ import { v } from "convex/values";
 import { defineSchema, defineTable } from "convex/schema";
 
 export default defineSchema({
-  texts: defineTable({
-    // raw text - should be < 1M.
-    raw: v.string(),
+  chunks: defineTable({
+    // The Pinecone ID is the chunk's _id
+    // raw text: ~1k bytes or less
+    text: v.string(),
+    sourceId: v.id("sources"),
+    // Where in a larger document is this text.
+    chunkIndex: v.number(),
+    lines: v.object({
+      from: v.number(),
+      to: v.number(),
+    }),
+  }).searchIndex("text", { searchField: "text" }),
+  sources: defineTable({
+    name: v.string(),
+    // Max 1k chunks (otherwise remove this and use an index on sourceId)
+    chunkIds: v.array(v.id("chunks")),
+    saved: v.boolean(),
   }),
-  vectors: defineTable({
-    float32Buffer: v.bytes(),
-    textId: v.id("texts"),
-  }),
-  embeddingStats: defineTable({
-    vectorId: v.id("vectors"),
-    numTexts: v.number(),
-    totalTokens: v.number(),
-    totalLength: v.number(),
-    elapsedMs: v.number(),
+  searches: defineTable({
+    // The Pinecone ID is the searche's _id
+    input: v.string(),
+    relatedChunks: v.optional(
+      v.array(
+        v.object({
+          id: v.id("chunks"),
+          score: v.number(),
+        })
+      )
+    ),
+    // stats
+    embeddingMs: v.optional(v.number()),
+    pineconeMs: v.optional(v.number()),
   }),
 });

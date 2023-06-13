@@ -10,12 +10,13 @@
  */
 
 import type { ApiFromModules } from "convex/api";
-import type * as embeddings from "../embeddings";
+import type * as chunks from "../chunks";
 import type * as lib_crud from "../lib/crud";
+import type * as lib_embeddings from "../lib/embeddings";
 import type * as lib_migrations from "../lib/migrations";
-import type * as lib_relationships from "../lib/relationships";
 import type * as pinecone from "../pinecone";
-import type * as texts from "../texts";
+import type * as searches from "../searches";
+import type * as sources from "../sources";
 
 /**
  * A type describing your app's public Convex API.
@@ -27,10 +28,11 @@ import type * as texts from "../texts";
  * `ConvexReactClient` to create app-specific types.
  */
 export type API = ApiFromModules<{
-  embeddings: typeof embeddings;
+  chunks: typeof chunks;
   "lib/crud": typeof lib_crud;
+  "lib/embeddings": typeof lib_embeddings;
   "lib/migrations": typeof lib_migrations;
-  "lib/relationships": typeof lib_relationships;
   pinecone: typeof pinecone;
-  texts: typeof texts;
+  searches: typeof searches;
+  sources: typeof sources;
 }>;

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "convex": "^0.16.1",
+    "langchain": "^0.0.92",
     "openai": "^3.2.1",
     "pinecone-client": "^1.1.0",
     "react": "^18.2.0",
