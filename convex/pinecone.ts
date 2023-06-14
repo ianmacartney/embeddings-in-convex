@@ -1,15 +1,20 @@
-"use node";
 import { action } from "./_generated/server";
-import { PineconeClient } from "pinecone-client";
+import { PineconeClient } from "@pinecone-database/pinecone";
 import { fetchEmbedding, fetchEmbeddingBatch } from "./lib/embeddings";
 import { Id } from "./_generated/dataModel";
 
-export function pineconeClient(namespace?: "chunks" | "questions") {
-  return new PineconeClient({
-    apiKey: process.env.PINECONE_API_KEY,
-    baseUrl: process.env.PINECONE_API_BASE_URL,
-    namespace,
+function orThrow(env: string | undefined): string {
+  if (!env) throw new Error("Missing Environment Variable");
+  return env;
+}
+
+export async function pineconeClient(namespace?: "chunks" | "questions") {
+  const client = new PineconeClient();
+  await client.init({
+    apiKey: orThrow(process.env.PINECONE_API_KEY),
+    environment: orThrow(process.env.PINECONE_ENVIRONMENT),
   });
+  return client.Index(orThrow(process.env.PINECONE_INDEX_NAME));
 }
 
 export const addSearch = action(
@@ -21,16 +26,18 @@ export const addSearch = action(
     const embeddingStart = Date.now();
     const embedding = await fetchEmbedding(input);
     const embeddingMs = Date.now() - embeddingStart;
-    await runMutation("searches:patch", {
-      id: searchId,
-      patch: { embeddingMs },
-    });
     const pineconeStart = Date.now();
-    const pinecone = pineconeClient("chunks");
-    const { matches } = await pinecone.query({ topK: 10, vector: embedding });
+    const pinecone = await pineconeClient();
+    const { matches } = await pinecone.query({
+      queryRequest: { namespace: "chunks", topK: 10, vector: embedding },
+    });
+    if (!matches) throw new Error("Pinecone matches are empty");
     const pineconeMs = Date.now() - pineconeStart;
-    await pineconeClient("questions").upsert({
-      vectors: [{ id: searchId.id, values: embedding, metadata: { input } }],
+    await pinecone.upsert({
+      upsertRequest: {
+        namespace: "questions",
+        vectors: [{ id: searchId.id, values: embedding, metadata: { input } }],
+      },
     });
     console.log({
       embeddingMs,
@@ -44,6 +51,7 @@ export const addSearch = action(
           id: new Id("chunks", id),
           score,
         })),
+        embeddingMs,
         pineconeMs,
       },
     });
@@ -66,17 +74,20 @@ export const createSource = action(
     const embeddings = await fetchEmbeddingBatch(
       chunks.map(({ text }) => text.replace(/\n/g, " "))
     );
-    const pinecone = pineconeClient("chunks");
     const { sourceId, chunkIds } = await runMutation("sources:insert", {
       name,
       chunks,
     });
+    const pinecone = await pineconeClient();
     await pinecone.upsert({
-      vectors: chunkIds.map((id, chunkIndex) => ({
-        id: id.id,
-        values: embeddings[chunkIndex],
-        metadata: { name, sourceId: sourceId.toString(), chunkIndex },
-      })),
+      upsertRequest: {
+        namespace: "chunks",
+        vectors: chunkIds.map((id, chunkIndex) => ({
+          id: id.id,
+          values: embeddings[chunkIndex],
+          metadata: { name, sourceId: sourceId.toString(), chunkIndex },
+        })),
+      },
     });
     await runMutation("sources:patch", {
       id: sourceId,
