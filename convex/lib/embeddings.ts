@@ -12,7 +12,7 @@ export async function fetchEmbeddingBatch(texts: string[]) {
       input: texts,
     }),
   });
-  const elapsedMs = Date.now() - start;
+  const embeddingMs = Date.now() - start;
 
   const jsonresults = await result.json();
   if (jsonresults.data.length !== texts.length) {
@@ -24,16 +24,14 @@ export async function fetchEmbeddingBatch(texts: string[]) {
     index: number;
   }[];
   allembeddings.sort((a, b) => b.index - a.index);
-  console.log({
-    batchSize: texts.length,
+  return {
+    embeddings: allembeddings.map(({ embedding }) => embedding),
     totalTokens: jsonresults.usage.total_tokens,
-    totalLength: texts.reduce((acc, cur) => acc + cur.length, 0),
-    elapsedMs,
-  });
-  return allembeddings.map(({ embedding }) => embedding);
+    embeddingMs,
+  };
 }
 
 export async function fetchEmbedding(text: string) {
-  const embeddings = await fetchEmbeddingBatch([text]);
-  return embeddings[0];
+  const { embeddings, ...stats } = await fetchEmbeddingBatch([text]);
+  return { embedding: embeddings[0], ...stats };
 }
