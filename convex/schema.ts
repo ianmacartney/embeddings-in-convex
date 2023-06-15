@@ -37,6 +37,7 @@ export default defineSchema({
       )
     ),
     // stats
+    count: v.number(),
     inputTokens: v.optional(v.number()),
     embeddingMs: v.optional(v.number()),
     pineconeMs: v.optional(v.number()),

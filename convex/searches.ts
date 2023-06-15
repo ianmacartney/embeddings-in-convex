@@ -9,23 +9,36 @@ import { fetchEmbedding } from "./lib/embeddings";
 export const { patch, get } = crud("searches");
 
 export const upsert = internalMutation(
-  async ({ db }, { input }: { input: string }) => {
+  async (
+    { db, scheduler },
+    { input, count: countOpt }: { input: string; count?: number }
+  ) => {
+    const count = countOpt || 10;
     const existing = await db
       .query("searches")
       .withIndex("input", (q) => q.eq("input", input))
+      .filter((q) => q.gte(q.field("count"), count))
       .unique();
-    if (existing) return [existing._id, false] as const;
-    return [await db.insert("searches", { input }), true] as const;
+    if (existing) return existing._id;
+    const searchId = await db.insert("searches", { input, count });
+    await scheduler.runAfter(0, api.searches.search, {
+      input,
+      searchId,
+      topK: count,
+    });
+    return searchId;
   }
 );
 
 export const search = action(
   async (
     { runMutation },
-    { input, count }: { input: string; count?: number }
-  ): Promise<Id<"searches">> => {
-    const [searchId, added] = await runMutation(api.searches.upsert, { input });
-    if (!added) return searchId;
+    {
+      input,
+      topK,
+      searchId,
+    }: { input: string; topK: number; searchId?: Id<"searches"> }
+  ) => {
     const {
       embedding,
       totalTokens: inputTokens,
@@ -36,40 +49,43 @@ export const search = action(
     const { matches } = await pinecone.query({
       queryRequest: {
         namespace: "chunks",
-        topK: count || 10,
+        topK,
         vector: embedding,
       },
     });
     if (!matches) throw new Error("Pinecone matches are empty");
+    const relatedChunks = matches.map(({ id, score }) => ({
+      id: id as Id<"chunks">,
+      score,
+    }));
     const pineconeMs = Date.now() - pineconeStart;
-    await pinecone.upsert({
-      upsertRequest: {
-        namespace: "searches",
-        vectors: [{ id: searchId, values: embedding, metadata: { input } }],
-      },
-    });
-    const saveSearchMs = Date.now() - pineconeStart - pineconeMs;
-    console.log({
-      inputTokens,
-      embeddingMs,
-      pineconeMs,
-      saveSearchMs,
-    });
-    await runMutation(api.searches.patch, {
-      id: searchId,
-      patch: {
-        relatedChunks: matches.map(({ id, score }) => ({
-          id: id as Id<"chunks">,
-          score,
-        })),
-        // stats
+    if (searchId) {
+      await pinecone.upsert({
+        upsertRequest: {
+          namespace: "searches",
+          vectors: [{ id: searchId, values: embedding, metadata: { input } }],
+        },
+      });
+      const saveSearchMs = Date.now() - pineconeStart - pineconeMs;
+      console.log({
         inputTokens,
         embeddingMs,
         pineconeMs,
         saveSearchMs,
-      },
-    });
-    return searchId;
+      });
+      await runMutation(api.searches.patch, {
+        id: searchId,
+        patch: {
+          relatedChunks,
+          // stats
+          inputTokens,
+          embeddingMs,
+          pineconeMs,
+          saveSearchMs,
+        },
+      });
+    }
+    return relatedChunks;
   }
 );
 
