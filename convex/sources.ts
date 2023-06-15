@@ -5,6 +5,7 @@ import { fetchEmbeddingBatch } from "./lib/embeddings";
 import { pineconeClient } from "./lib/pinecone";
 
 export const { patch, paginate } = crud("sources");
+export const { getAll: allChunks } = crud("chunks");
 
 // Insert the source into the DB, along with the associated chunks.
 export const insert = internalMutation(
@@ -111,7 +112,7 @@ export const add = action(
 //     const pinecone = pineconeClient("sources");
 // 		let emeddingIdx = 0;
 // 		const vectors = await Promise.all(batch.map(({name, chunks}) => {
-//     const { sourceId, chunkIds } = await runMutation("sources:insertBatch", {
+//     const { sourceId, chunkIds } = await runMutation("sources:add", {
 //       name,
 //       chunks,
 //     });

@@ -10,7 +10,6 @@
  */
 
 import type { ApiFromModules } from "convex/server";
-import type * as chunks from "../chunks";
 import type * as lib_crud from "../lib/crud";
 import type * as lib_embeddings from "../lib/embeddings";
 import type * as lib_migrations from "../lib/migrations";
@@ -27,7 +26,6 @@ import type * as sources from "../sources";
  * ```
  */
 export declare const api: ApiFromModules<{
-  chunks: typeof chunks;
   "lib/crud": typeof lib_crud;
   "lib/embeddings": typeof lib_embeddings;
   "lib/migrations": typeof lib_migrations;

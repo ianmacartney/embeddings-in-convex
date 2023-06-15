@@ -51,8 +51,9 @@ function AddSource() {
 
 function Sources({ sources }: { sources: Doc<"sources">[] }) {
   const chunks =
-    useQuery(api.chunks.getAll, { ids: sources.map((s) => s.chunkIds[0]) }) ??
-    [];
+    useQuery(api.sources.allChunks, {
+      ids: sources.map((s) => s.chunkIds[0]),
+    }) ?? [];
   return (
     <ul role="list" className="divide-y divide-gray-100">
       {sources.map((source) => (
