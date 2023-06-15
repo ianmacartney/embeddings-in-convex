@@ -23,7 +23,7 @@ export function crud<TableName extends TableNames>(tableName: TableName) {
     get: query(async ({ db }, { id }: { id: Id<TableName> }) => {
       const doc = await db.get(id);
       if (!doc) {
-        throw new Error("Document not found: " + id.toString());
+        throw new Error("Document not found: " + id);
       }
       return doc;
     }),
@@ -32,7 +32,7 @@ export function crud<TableName extends TableNames>(tableName: TableName) {
         ids.map(async (id) => {
           const doc = await db.get(id);
           if (!doc) {
-            throw new Error("Document not found: " + id.toString());
+            throw new Error("Document not found: " + id);
           }
           return doc;
         })

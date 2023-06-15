@@ -1,17 +1,14 @@
 import { useState } from "react";
 import "./App.css";
 import { Doc, Id } from "../convex/_generated/dataModel";
-import {
-  useAction,
-  usePaginatedQuery,
-  useQuery,
-} from "../convex/_generated/react";
+import { api } from "../convex/_generated/api";
+import { useAction, usePaginatedQuery, useQuery } from "convex/react";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 function AddSource() {
   const [newText, setNewText] = useState("");
   const [name, setName] = useState("");
-  const createSource = useAction("pinecone:createSource");
+  const createSource = useAction(api.sources.add);
 
   return (
     <form
@@ -54,18 +51,19 @@ function AddSource() {
 
 function Sources({ sources }: { sources: Doc<"sources">[] }) {
   const chunks =
-    useQuery("chunks:getAll", { ids: sources.map((s) => s.chunkIds[0]) }) ?? [];
+    useQuery(api.chunks.getAll, { ids: sources.map((s) => s.chunkIds[0]) }) ??
+    [];
   return (
     <ul role="list" className="divide-y divide-gray-100">
       {sources.map((source) => (
-        <li key={source._id.toString()} className="flex gap-x-4 py-5">
+        <li key={source._id} className="flex gap-x-4 py-5">
           <div className="flex-auto">
             <div className="flex items-baseline justify-between gap-x-4">
               <p className="text-sm font-semibold leading-6 text-gray-900">
                 {source.name}
               </p>
               <p className="flex-none text-xs text-gray-600">
-                {chunks.find((c) => c._id.equals(source.chunkIds[0]))?.text}
+                {chunks.find((c) => c._id === source.chunkIds[0])?.text}
               </p>
             </div>
           </div>
@@ -80,7 +78,7 @@ function AllSources() {
     status,
     loadMore,
     results: sources,
-  } = usePaginatedQuery("sources:paginate", {}, { initialNumItems: 10 });
+  } = usePaginatedQuery(api.sources.paginate, {}, { initialNumItems: 10 });
   return (
     <>
       <Sources sources={sources} />
@@ -102,7 +100,7 @@ function Search({
   setTarget: (t: { text: string; searchId: Id<"searches"> }) => void;
 }) {
   const [input, setSearch] = useState("");
-  const addSearch = useAction("pinecone:addSearch");
+  const addSearch = useAction(api.searches.add);
   return (
     <form
       onSubmit={(e) => {
@@ -134,7 +132,7 @@ function Chunks({
   return (
     <ul role="list" className="divide-y divide-gray-100">
       {chunks.map((chunk) => (
-        <li key={chunk._id.toString()} className="flex gap-x-4 py-5">
+        <li key={chunk._id} className="flex gap-x-4 py-5">
           <div className="flex-auto">
             <div className="flex items-baseline justify-between gap-x-4">
               <p className="text-sm font-semibold leading-6 text-gray-900">
@@ -150,13 +148,13 @@ function Chunks({
 }
 
 function Results({ searchId }: { searchId: Id<"searches"> }) {
-  const semantic = useQuery("searches:semanticSearch", { searchId }) ?? [];
+  const semantic = useQuery(api.searches.semanticSearch, { searchId }) ?? [];
   const {
     status,
     loadMore,
     results: wordBased,
   } = usePaginatedQuery(
-    "searches:wordSearch",
+    api.searches.wordSearch,
     { searchId },
     { initialNumItems: 10 }
   );

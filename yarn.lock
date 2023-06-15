@@ -853,10 +853,10 @@ convert-source-map@^1.7.0:
   resolved "https://registry.yarnpkg.com/convert-source-map/-/convert-source-map-1.9.0.tgz#7faae62353fb4213366d0ca98358d22e8368b05f"
   integrity sha512-ASFBup0Mz1uyiIjANan1jzLQami9z1PoYSZCiiYW2FczPbenXc45FZdBZLzOT+r6+iciuEModtmCti+hjaAk0A==
 
-convex@^0.16.1:
-  version "0.16.1"
-  resolved "https://registry.yarnpkg.com/convex/-/convex-0.16.1.tgz#ff04890121f31270ddfe5b97da21804935e54bbb"
-  integrity sha512-mprDfonakHG0LGCU4SFGeyw2mA/8LoIe1+EdrjCwpJSuIqb1S1FoU0PJ94Y1oi8lByEJpMM9fbnMDnjJJV7HoA==
+convex@^0.17.0-alpha.1:
+  version "0.17.0-alpha.1"
+  resolved "https://registry.yarnpkg.com/convex/-/convex-0.17.0-alpha.1.tgz#3ee1d4268298aef4d549ec9655aac4f9e4386b05"
+  integrity sha512-0FhwwIrJ2OxlWbmXQ8iaNpd1dER8c5RhwA+DG97UwPd0tOxfiuXinABDSYzdkmgfHrNG+ZYuf3/Sw6QdGIR2uA==
   dependencies:
     encoding "^0.1.13"
     esbuild "^0.15.16"
