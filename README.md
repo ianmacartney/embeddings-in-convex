@@ -2,4 +2,7 @@
 An example of working with embeddings and vector databases in Convex.
 
 To Run:
-yarn dev
+In two separate terminals:
+
+	yarn convex dev
+	yarn dev
