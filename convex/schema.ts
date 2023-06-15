@@ -40,6 +40,6 @@ export default defineSchema({
     inputTokens: v.optional(v.number()),
     embeddingMs: v.optional(v.number()),
     pineconeMs: v.optional(v.number()),
-    questionMs: v.optional(v.number()),
-  }),
+    saveSearchMs: v.optional(v.number()),
+  }).index("input", ["input"]),
 });

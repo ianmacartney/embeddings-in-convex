@@ -1,19 +1,31 @@
 import { PaginationOptions } from "convex/server";
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
-import { action, query } from "./_generated/server";
+import { action, internalMutation, query } from "./_generated/server";
 import { crud } from "./lib/crud";
 import { pineconeClient } from "./lib/pinecone";
 import { fetchEmbedding } from "./lib/embeddings";
 
-export const { insert, patch, get } = crud("searches");
+export const { patch, get } = crud("searches");
 
-export const add = action(
+export const upsert = internalMutation(
+  async ({ db }, { input }: { input: string }) => {
+    const existing = await db
+      .query("searches")
+      .withIndex("input", (q) => q.eq("input", input))
+      .unique();
+    if (existing) return [existing._id, false] as const;
+    return [await db.insert("searches", { input }), true] as const;
+  }
+);
+
+export const search = action(
   async (
     { runMutation },
     { input, count }: { input: string; count?: number }
   ): Promise<Id<"searches">> => {
-    const searchId = await runMutation(api.searches.insert, { input });
+    const [searchId, added] = await runMutation(api.searches.upsert, { input });
+    if (!added) return searchId;
     const {
       embedding,
       totalTokens: inputTokens,
@@ -36,12 +48,12 @@ export const add = action(
         vectors: [{ id: searchId, values: embedding, metadata: { input } }],
       },
     });
-    const questionMs = Date.now() - pineconeStart - pineconeMs;
+    const saveSearchMs = Date.now() - pineconeStart - pineconeMs;
     console.log({
       inputTokens,
       embeddingMs,
       pineconeMs,
-      questionMs,
+      saveSearchMs,
     });
     await runMutation(api.searches.patch, {
       id: searchId,
@@ -54,7 +66,7 @@ export const add = action(
         inputTokens,
         embeddingMs,
         pineconeMs,
-        questionMs,
+        saveSearchMs,
       },
     });
     return searchId;
