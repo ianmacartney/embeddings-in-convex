@@ -7,6 +7,7 @@ import { Sources } from "./Sources";
 import { Search } from "./Search";
 import { Compare } from "./Compare";
 import { useComparison } from "./useComparison";
+import { Prompt } from "./Prompt";
 
 function App() {
   const [target, compare] = useComparison();
@@ -18,10 +19,16 @@ function App() {
           <Tabs.Tab id="compare" anchor="compare">
             Compare
           </Tabs.Tab>
+          <Tabs.Tab id="prompt" anchor="prompt">
+            Prompt
+          </Tabs.Tab>
           <Tabs.Tab anchor="sources">Sources</Tabs.Tab>
         </Tabs.List>
         <Tabs.Content anchor="search">
           <Search compare={compare} />
+        </Tabs.Content>
+        <Tabs.Content anchor="prompt">
+          <Prompt />
         </Tabs.Content>
         <Tabs.Content anchor="compare">
           <Compare target={target} compare={compare} />

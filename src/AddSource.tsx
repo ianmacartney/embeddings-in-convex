@@ -57,7 +57,9 @@ export function AddSource() {
         render={({ field }) => <Textarea placeholder="Text" {...field} />}
         defaultValue=""
       />
-      <Button type="submit">Submit</Button>
+      <Button type="submit" color="green">
+        Submit
+      </Button>
     </form>
   );
 }
