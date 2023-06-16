@@ -11,6 +11,8 @@ compare them to each other, and compare semantic and word searches over them.
 
 You can then use the queried source data to include in a ChatGPT prompt (WIP).
 
+![](./screenshot.png)
+
 UI:
 - React
 - Tailwindcss
