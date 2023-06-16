@@ -1,8 +1,8 @@
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { useRef, useState } from "react";
 import { Dispatch } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
-import { Accordion, Text, InputGroup } from "@rewind-ui/core";
+import { Accordion, Button, Table, Text, InputGroup } from "@rewind-ui/core";
 import { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
 import { Loading } from "./Loading";
@@ -34,6 +34,13 @@ export function Search({ compare }: { compare?: CompareFn }) {
           </Accordion.Item>
         </Accordion>
       )}
+      <Text size="lg">Search History</Text>
+      <PreviousSearches
+        reuseSearch={(target) => {
+          setTarget(target);
+          setInput(target.text);
+        }}
+      />
     </>
   );
 }
@@ -87,9 +94,15 @@ function WordSearch({
 }) {
   const wordBased = useQuery(api.searches.wordSearch, { input, count: 10 });
   return wordBased ? (
-    <Chunks chunks={wordBased} compare={compare} />
+    <>
+      <Text>Results for "{input}":</Text>
+      <Chunks chunks={wordBased} compare={compare} />
+    </>
   ) : (
-    <Loading />
+    <>
+      <Text>Searching for "{input}"...</Text>
+      <Loading />
+    </>
   );
 }
 
@@ -113,6 +126,63 @@ function SemanticSearch({
           <Text>Searching for "{text}"...</Text>
           <Loading />
         </>
+      )}
+    </>
+  );
+}
+
+export type UseSearchFn = (target: Target) => void;
+
+export function PreviousSearches({
+  reuseSearch,
+}: {
+  reuseSearch: UseSearchFn;
+}) {
+  const { status, loadMore, results } = usePaginatedQuery(
+    api.searches.paginate,
+    {},
+    { initialNumItems: 10 }
+  );
+  return (
+    <>
+      <Table>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th align="left">Input</Table.Th>
+            <Table.Th align="left">Tokens</Table.Th>
+            <Table.Th align="left">Results</Table.Th>
+            <Table.Th align="left"></Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {results.map((result) => (
+            <Table.Tr key={result._id}>
+              <Table.Td>{result.input}</Table.Td>
+              <Table.Td>{result.inputTokens}</Table.Td>
+              <Table.Td>
+                {result.relatedChunks?.length || result.count}
+              </Table.Td>
+              <Table.Td>
+                <Button
+                  onClick={() =>
+                    reuseSearch({ text: result.input, searchId: result._id })
+                  }
+                >
+                  Re-use Search
+                </Button>
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+
+      {status !== "Exhausted" && (
+        <button
+          onClick={() => loadMore(10)}
+          disabled={status !== "CanLoadMore"}
+        >
+          Load More
+        </button>
       )}
     </>
   );

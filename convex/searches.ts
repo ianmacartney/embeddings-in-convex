@@ -5,7 +5,7 @@ import { crud } from "./lib/crud";
 import { pineconeClient } from "./lib/pinecone";
 import { fetchEmbedding } from "./lib/embeddings";
 
-export const { patch, get } = crud("searches");
+export const { patch, paginate } = crud("searches");
 
 export const upsert = mutation(
   async (
