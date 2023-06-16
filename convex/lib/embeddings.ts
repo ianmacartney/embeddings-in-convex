@@ -1,3 +1,5 @@
+import { query } from "../_generated/server";
+
 export async function fetchEmbeddingBatch(texts: string[]) {
   const start = Date.now();
   const result = await fetch("https://api.openai.com/v1/embeddings", {
@@ -35,3 +37,9 @@ export async function fetchEmbedding(text: string) {
   const { embeddings, ...stats } = await fetchEmbeddingBatch([text]);
   return { embedding: embeddings[0], ...stats };
 }
+
+export const envCheck = query(async () => {
+  return {
+    OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+  };
+});
