@@ -1,14 +1,13 @@
-import { PaginationOptions } from "convex/server";
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
-import { action, internalMutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { crud } from "./lib/crud";
 import { pineconeClient } from "./lib/pinecone";
 import { fetchEmbedding } from "./lib/embeddings";
 
 export const { patch, get } = crud("searches");
 
-export const upsert = internalMutation(
+export const upsert = mutation(
   async (
     { db, scheduler },
     { input, count: countOpt }: { input: string; count?: number }
@@ -19,8 +18,12 @@ export const upsert = internalMutation(
       .withIndex("input", (q) => q.eq("input", input))
       .filter((q) => q.gte(q.field("count"), count))
       .unique();
-    if (existing) return existing._id;
+    if (existing) {
+      console.log("Re-using search for", input);
+      return existing._id;
+    }
     const searchId = await db.insert("searches", { input, count });
+    console.log("Starting search for", input);
     await scheduler.runAfter(0, api.searches.search, {
       input,
       searchId,
@@ -90,35 +93,24 @@ export const search = action(
 );
 
 export const wordSearch = query(
-  async (
-    { db },
-    {
-      searchId,
-      paginationOpts,
-    }: { searchId: Id<"searches">; paginationOpts: PaginationOptions }
-  ) => {
-    const search = await db.get(searchId);
-    if (!search) throw new Error("Unknown search");
+  async ({ db }, { input, count }: { input: string; count: number }) => {
     const results = await db
       .query("chunks")
-      .withSearchIndex("text", (q) => q.search("text", search.input))
-      .paginate(paginationOpts);
-    return {
-      ...results,
-      page: await Promise.all(
-        results.page.map(async (chunk) => {
-          const source = await db.get(chunk.sourceId);
-          return { ...chunk, sourceName: source!.name };
-        })
-      ),
-    };
+      .withSearchIndex("text", (q) => q.search("text", input))
+      .take(count);
+    return await Promise.all(
+      results.map(async (chunk) => {
+        const source = await db.get(chunk.sourceId);
+        return { ...chunk, sourceName: source!.name };
+      })
+    );
   }
 );
 
 export const semanticSearch = query(
   async ({ db }, { searchId }: { searchId: Id<"searches"> }) => {
     const search = await db.get(searchId);
-    if (!search) throw new Error("Unknown search");
+    if (!search) throw new Error("Unknown search " + searchId);
     if (!search.relatedChunks) return null;
     return await Promise.all(
       search.relatedChunks.map(async ({ id, score }) => {

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.0.10",
     "@pinecone-database/pinecone": "^0.1.6",
     "@rewind-ui/core": "^0.8.0",
     "@tailwindcss/forms": "^0.5.3",
@@ -19,6 +20,7 @@
     "openai": "^3.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hook-form": "^7.44.3",
     "tailwind-scrollbar": "^3.0.4"
   },
   "devDependencies": {
