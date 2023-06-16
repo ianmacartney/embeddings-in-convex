@@ -41,6 +41,9 @@ export function crud<TableName extends TableNames>(tableName: TableName) {
     all: query(async ({ db }) => {
       return await db.query(tableName).collect();
     }),
+    take: query(async ({ db }, { count }: { count: number }) => {
+      return await db.query(tableName).take(count);
+    }),
     paginate: query(
       async (
         { db },
