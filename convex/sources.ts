@@ -1,12 +1,9 @@
-import { PaginationOptions } from "convex/server";
+import { PaginationOptions, paginationOptsValidator } from "convex/server";
 import { api } from "./_generated/api";
-import { action, internalMutation, query } from "./_generated/server";
-import { crud } from "./lib/crud";
+import { action, internalMutation, mutation, query } from "./_generated/server";
 import { fetchEmbeddingBatch } from "./lib/embeddings";
 import { pineconeClient } from "./lib/pinecone";
-
-export const { patch, paginate } = crud("sources");
-export const { getMany: getChunks, get: getChunk } = crud("chunks");
+import { v } from "convex/values";
 
 export const paginateChunks = query(
   async ({ db }, { paginationOpts }: { paginationOpts: PaginationOptions }) => {
@@ -146,3 +143,42 @@ export const add = action(
 //     });
 //   }
 // );
+
+export const patch = internalMutation({
+  args: { id: v.id("sources"), patch: v.any() },
+  handler: async ({ db }, { id, patch }) => {
+    return await db.patch(id, patch);
+  },
+});
+
+export const paginate = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async ({ db }, { paginationOpts }) => {
+    return await db.query("sources").paginate(paginationOpts);
+  },
+});
+
+export const getChunk = query({
+  args: { id: v.id("chunks") },
+  handler: async ({ db }, { id }) => {
+    const doc = await db.get(id);
+    if (!doc) {
+      throw new Error("Document not found: " + id);
+    }
+    return doc;
+  },
+});
+export const getChunks = query({
+  args: { ids: v.array(v.id("chunks")) },
+  handler: async ({ db }, { ids }) => {
+    return Promise.all(
+      ids.map(async (id) => {
+        const doc = await db.get(id);
+        if (!doc) {
+          throw new Error("Document not found: " + id);
+        }
+        return doc;
+      })
+    );
+  },
+});

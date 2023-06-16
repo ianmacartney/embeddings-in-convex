@@ -1,11 +1,10 @@
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
-import { action, mutation, query } from "./_generated/server";
-import { crud } from "./lib/crud";
+import { action, internalMutation, mutation, query } from "./_generated/server";
 import { pineconeClient } from "./lib/pinecone";
 import { fetchEmbedding } from "./lib/embeddings";
-
-export const { patch, paginate } = crud("searches");
+import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 
 export const upsert = mutation(
   async (
@@ -121,3 +120,16 @@ export const semanticSearch = query(
     );
   }
 );
+
+export const patch = internalMutation({
+  args: { id: v.id("searches"), patch: v.any() },
+  handler: async ({ db }, { id, patch }) => {
+    return await db.patch(id, patch);
+  },
+});
+export const paginate = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async ({ db }, { paginationOpts }) => {
+    return await db.query("searches").paginate(paginationOpts);
+  },
+});

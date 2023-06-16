@@ -1,10 +1,8 @@
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
-import { action, mutation, query } from "./_generated/server";
-import { crud } from "./lib/crud";
+import { action, internalMutation, mutation, query } from "./_generated/server";
 import { pineconeClient } from "./lib/pinecone";
-
-export const { patch } = crud("comparisons");
+import { v } from "convex/values";
 
 export const upsert = mutation(
   async (
@@ -96,3 +94,10 @@ export const get = query(
     };
   }
 );
+
+export const patch = internalMutation({
+  args: { id: v.id("comparisons"), patch: v.any() },
+  handler: async ({ db }, { id, patch }) => {
+    return await db.patch(id, patch);
+  },
+});

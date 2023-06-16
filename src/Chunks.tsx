@@ -1,6 +1,6 @@
 import { Button, Table } from "@rewind-ui/core";
 import { Doc } from "../convex/_generated/dataModel";
-import { usePaginatedQuery, useQueries, useQuery } from "convex/react";
+import { usePaginatedQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { CompareFn } from "./useComparison";
 

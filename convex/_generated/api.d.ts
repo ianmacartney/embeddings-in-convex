@@ -11,7 +11,6 @@
 
 import type { ApiFromModules } from "convex/server";
 import type * as comparisons from "../comparisons";
-import type * as lib_crud from "../lib/crud";
 import type * as lib_embeddings from "../lib/embeddings";
 import type * as lib_migrations from "../lib/migrations";
 import type * as lib_pinecone from "../lib/pinecone";
@@ -28,7 +27,6 @@ import type * as sources from "../sources";
  */
 export declare const api: ApiFromModules<{
   comparisons: typeof comparisons;
-  "lib/crud": typeof lib_crud;
   "lib/embeddings": typeof lib_embeddings;
   "lib/migrations": typeof lib_migrations;
   "lib/pinecone": typeof lib_pinecone;
