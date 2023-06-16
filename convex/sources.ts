@@ -1,11 +1,28 @@
+import { PaginationOptions } from "convex/server";
 import { api } from "./_generated/api";
-import { action, internalMutation } from "./_generated/server";
+import { action, internalMutation, query } from "./_generated/server";
 import { crud } from "./lib/crud";
 import { fetchEmbeddingBatch } from "./lib/embeddings";
 import { pineconeClient } from "./lib/pinecone";
 
 export const { patch, paginate } = crud("sources");
-export const { getAll: allChunks } = crud("chunks");
+export const { getMany: getChunks, get: getChunk } = crud("chunks");
+
+export const paginateChunks = query(
+  async ({ db }, { paginationOpts }: { paginationOpts: PaginationOptions }) => {
+    const results = await db.query("chunks").paginate(paginationOpts);
+
+    return {
+      ...results,
+      page: await Promise.all(
+        results.page.map(async (chunk) => {
+          const source = await db.get(chunk.sourceId);
+          return { ...chunk, sourceName: source!.name };
+        })
+      ),
+    };
+  }
+);
 
 // Insert the source into the DB, along with the associated chunks.
 export const insert = internalMutation(

@@ -27,7 +27,7 @@ export function crud<TableName extends TableNames>(tableName: TableName) {
       }
       return doc;
     }),
-    getAll: query(async ({ db }, { ids }: { ids: Id<TableName>[] }) => {
+    getMany: query(async ({ db }, { ids }: { ids: Id<TableName>[] }) => {
       return Promise.all(
         ids.map(async (id) => {
           const doc = await db.get(id);

@@ -77,12 +77,22 @@ export const get = query(
     const comparison = await db.get(comparisonId);
     if (!comparison) throw new Error("Unknown comparison");
     if (!comparison.relatedChunks) return null;
-    return await Promise.all(
-      comparison.relatedChunks.map(async ({ id, score }) => {
-        const chunk = await db.get(id);
-        const source = await db.get(chunk!.sourceId);
-        return { ...chunk!, score, sourceName: source!.name };
-      })
-    );
+    const target = (await db.get(comparison.target))!;
+    return {
+      ...comparison,
+      relatedChunks: await Promise.all(
+        comparison.relatedChunks
+          .filter(({ id }) => id !== comparison.target)
+          .map(async ({ id, score }) => {
+            const chunk = await db.get(id);
+            const source = await db.get(chunk!.sourceId);
+            return { ...chunk!, score, sourceName: source!.name };
+          })
+      ),
+      target: {
+        ...target,
+        sourceName: (await db.get(target.sourceId))!.name,
+      },
+    };
   }
 );
