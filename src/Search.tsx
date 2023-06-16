@@ -1,4 +1,9 @@
-import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
+import {
+  useAction,
+  useMutation,
+  usePaginatedQuery,
+  useQuery,
+} from "convex/react";
 import { useRef, useState } from "react";
 import { Dispatch } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
@@ -143,6 +148,7 @@ export function PreviousSearches({
     {},
     { initialNumItems: 10 }
   );
+  const search = useAction(api.searches.search);
   return (
     <>
       <Table>
@@ -151,6 +157,8 @@ export function PreviousSearches({
             <Table.Th align="left">Input</Table.Th>
             <Table.Th align="left">Tokens</Table.Th>
             <Table.Th align="left">Results</Table.Th>
+            <Table.Th align="left">Embedding</Table.Th>
+            <Table.Th align="left">Pinecone</Table.Th>
             <Table.Th align="left"></Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -162,13 +170,31 @@ export function PreviousSearches({
               <Table.Td>
                 {result.relatedChunks?.length || result.count}
               </Table.Td>
+              <Table.Td>{result.embeddingMs?.toFixed(0) + " ms"}</Table.Td>
+              <Table.Td>{result.pineconeMs?.toFixed(0) + " ms"}</Table.Td>
               <Table.Td>
                 <Button
                   onClick={() =>
                     reuseSearch({ text: result.input, searchId: result._id })
                   }
+                  color="green"
                 >
-                  Re-use Search
+                  Re-use
+                </Button>
+                <span className="mx-1"></span>
+                <Button
+                  onClick={() =>
+                    search({
+                      input: result.input,
+                      topK: result.count,
+                      searchId: result._id,
+                    }).then(() =>
+                      reuseSearch({ text: result.input, searchId: result._id })
+                    )
+                  }
+                  color="red"
+                >
+                  Re-run
                 </Button>
               </Table.Td>
             </Table.Tr>
