@@ -35,7 +35,9 @@ export function Chunks({
             </Table.Td>
             {compare && (
               <Table.Td>
-                <Button onClick={() => compare(chunk._id)}>Compare</Button>
+                <Button color="blue" onClick={() => compare(chunk._id)}>
+                  Compare
+                </Button>
               </Table.Td>
             )}
           </Table.Tr>
@@ -59,12 +61,12 @@ export function AllChunks({ compare }: { compare: CompareFn }) {
     <>
       <Chunks chunks={chunks} compare={compare} />
       {status !== "Exhausted" && (
-        <button
+        <Button
           onClick={() => loadMore(10)}
           disabled={status !== "CanLoadMore"}
         >
           Load More
-        </button>
+        </Button>
       )}
     </>
   );

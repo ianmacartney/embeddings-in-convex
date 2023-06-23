@@ -35,6 +35,10 @@ function App() {
         </Tabs.Content>
         <Tabs.Content anchor="sources">
           <Text size="lg">Add a source</Text>
+          <p>
+            This is the data you will be able to search over and compare
+            semantically.
+          </p>
           <AddSource />
           <Sources />
         </Tabs.Content>
