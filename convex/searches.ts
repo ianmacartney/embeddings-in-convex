@@ -61,18 +61,18 @@ export const search = action(
       id: id as Id<"chunks">,
       score,
     }));
-    const pineconeMs = Date.now() - pineconeStart;
+    const queryMs = Date.now() - pineconeStart;
     if (searchId) {
       await upsertVectors(
         "searches",
         [{ id: searchId, values: embedding, metadata: { input } }],
         pinecone
       );
-      const saveSearchMs = Date.now() - pineconeStart - pineconeMs;
+      const saveSearchMs = Date.now() - pineconeStart - queryMs;
       console.log({
         inputTokens,
         embeddingMs,
-        pineconeMs,
+        queryMs,
         saveSearchMs,
       });
       await runMutation(api.searches.patch, {
@@ -82,7 +82,7 @@ export const search = action(
           // stats
           inputTokens,
           embeddingMs,
-          pineconeMs,
+          queryMs,
           saveSearchMs,
         },
       });

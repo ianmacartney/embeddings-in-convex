@@ -171,7 +171,7 @@ export function PreviousSearches({
                 {result.relatedChunks?.length || result.count}
               </Table.Td>
               <Table.Td>{result.embeddingMs?.toFixed(0) + " ms"}</Table.Td>
-              <Table.Td>{result.pineconeMs?.toFixed(0) + " ms"}</Table.Td>
+              <Table.Td>{result.queryMs?.toFixed(0) + " ms"}</Table.Td>
               <Table.Td>
                 <Button
                   onClick={() =>

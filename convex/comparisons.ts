@@ -53,9 +53,9 @@ export const compare = action(
       id: id as Id<"chunks">,
       score,
     }));
-    const pineconeMs = Date.now() - pineconeStart;
+    const queryMs = Date.now() - pineconeStart;
     console.log({
-      pineconeMs,
+      queryMs,
     });
     if (comparisonId) {
       await runMutation(api.comparisons.patch, {
@@ -63,7 +63,7 @@ export const compare = action(
         patch: {
           relatedChunks,
           // stats
-          pineconeMs,
+          queryMs,
         },
       });
     }

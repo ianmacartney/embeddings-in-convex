@@ -46,7 +46,7 @@ export default defineSchema({
     count: v.number(),
     inputTokens: v.optional(v.number()),
     embeddingMs: v.optional(v.number()),
-    pineconeMs: v.optional(v.number()),
+    queryMs: v.optional(v.number()),
     saveSearchMs: v.optional(v.number()),
   }).index("input", ["input"]),
 
@@ -63,6 +63,6 @@ export default defineSchema({
     ),
     // stats
     count: v.number(),
-    pineconeMs: v.optional(v.number()),
+    queryMs: v.optional(v.number()),
   }).index("target", ["target"]),
 });
