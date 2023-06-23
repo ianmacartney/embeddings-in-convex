@@ -22,6 +22,7 @@ if (!address) throw new Error("Specify CONVEX_URL env variable");
 const client = new ConvexHttpClient(address);
 
 export const uploadDocuments = async () => {
+  const start = Date.now();
   const docs = await loader.load();
   let batch: {
     name: string;
@@ -56,7 +57,7 @@ export const uploadDocuments = async () => {
     await client.action(api.sources.addBatch, { batch });
     batch = [];
   }
-  console.log("Finished embedding documents");
+  console.log("Finished embedding documents. ms:", Date.now() - start);
   return "success";
 };
 
