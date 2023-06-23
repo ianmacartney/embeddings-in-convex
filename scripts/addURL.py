@@ -10,27 +10,21 @@ Setup:
 !playwright install
 """
 
+import os, sys
+from dotenv import load_dotenv
+from convex import ConvexClient
 from langchain.document_loaders import PlaywrightURLLoader
 from langchain.text_splitter import CharacterTextSplitter
 
 
-urls = [
-    "https://stack.convex.dev/articles",
-]
+urls = sys.argv[1:]
 loader = PlaywrightURLLoader(urls=urls, remove_selectors=["header", "footer"])
 data = loader.load()
 text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
     chunk_size=100, chunk_overlap=0
 )
-texts = text_splitter.split_text(data.page_content)
-# texts = text_splitter.create_documents([data.page_content])
-print(texts[0])
-print(texts[1])
+texts = text_splitter.split_text(data[0].page_content)
 
-import os
-from dotenv import load_dotenv
-
-from convex import ConvexClient
 
 load_dotenv(".env.local")
 load_dotenv()
@@ -44,13 +38,16 @@ print(
     client.action(
         "sources:add",
         dict(
-            name=data.metadata["source"],
-            chunks=map(
-                lambda chunk: dict(
-                    text=chunk.page_content,
-                    lines={"from": 1, "to": 2},
-                ),
-                texts,
+            name=data[0].metadata["source"],
+            chunks=list(
+                map(
+                    lambda chunk: dict(
+                        text=chunk,
+                        # TODO: add real line numbers
+                        lines={"from": 0, "to": 0},
+                    ),
+                    texts,
+                )
             ),
         ),
     )

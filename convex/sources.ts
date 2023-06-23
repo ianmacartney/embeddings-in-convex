@@ -180,7 +180,7 @@ export const patch = internalMutation({
 export const paginate = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async ({ db }, { paginationOpts }) => {
-    return await db.query("sources").paginate(paginationOpts);
+    return await db.query("sources").order("desc").paginate(paginationOpts);
   },
 });
 

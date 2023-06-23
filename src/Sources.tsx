@@ -51,12 +51,12 @@ export function Sources() {
         </Table.Tbody>
       </Table>
       {status !== "Exhausted" && (
-        <button
+        <Button
           onClick={() => loadMore(10)}
           disabled={status !== "CanLoadMore"}
         >
           Load More
-        </button>
+        </Button>
       )}
     </>
   );
