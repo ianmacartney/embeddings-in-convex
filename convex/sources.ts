@@ -135,7 +135,10 @@ export const addBatch = action(
     // We could also add a batch insert mutation in the future.
     const limit = pLimit(100);
     // How far into the overall embeddigns list to pull a given batch.
-    const offsets = [0, ...batch.map((s) => s.chunks.length)];
+    const offsets = batch.reduce(
+      (acc, cur) => [...acc, acc[acc.length - 1] + cur.chunks.length],
+      [0]
+    );
     const sources = await Promise.all(
       batch.map(({ name, chunks }, idx) =>
         limit(async () => {
