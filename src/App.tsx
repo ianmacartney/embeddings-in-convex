@@ -15,6 +15,7 @@ function App() {
     <EnvCheck>
       <Tabs defaultTab="sources">
         <Tabs.List>
+          <Tabs.Tab anchor="sources">Sources</Tabs.Tab>
           <Tabs.Tab anchor="search">Search</Tabs.Tab>
           <Tabs.Tab id="compare" anchor="compare">
             Compare
@@ -22,7 +23,6 @@ function App() {
           <Tabs.Tab id="prompt" anchor="prompt">
             Prompt
           </Tabs.Tab>
-          <Tabs.Tab anchor="sources">Sources</Tabs.Tab>
         </Tabs.List>
         <Tabs.Content anchor="search">
           <Search compare={compare} />

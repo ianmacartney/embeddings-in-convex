@@ -24,6 +24,12 @@ Backend:
 - OpenAI API for creating vector embeddings.
 - Convex for storing application data and running server-side functions.
 
+Work planned:
+- [ ] Add a python script that scrapes URLs and imports the data.
+- [x] Add a node script that imports local files (.pdf, .md, .txt).
+- [ ] Allow picking which sources to use in a ChatGPT prompt, and what template to use, to iterate on templates.
+- [ ] Configuration to fetch the most 20, 40, or 80 documents when searching (hard-coded to 10 currently).
+
 ## Setup
 
 ### Prerequisites:
@@ -58,3 +64,15 @@ In two separate terminals:
 	# Runs the frontend using Vite.
 	$ vite
 ```
+
+## Upload sources from a folder
+
+You can add .txt, .md, and .pdf files as sources to your project via:
+
+```sh
+export CONVEX_URL= # your url - see .env.local (dev) or .env (prod)
+npx ts-node-esm scripts/addFiles.ts ./path/to/folder
+```
+
+By default it'll check in a documents folder at the root of the repo.
+It will upload in chunks

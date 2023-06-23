@@ -32,6 +32,7 @@ export async function upsertVectors<TableName extends TableNames>(
   vectors: { id: Id<TableName>; values: number[]; metadata: object }[],
   index?: VectorOperationsApi
 ) {
+  const start = Date.now();
   if (!index) {
     index = await pineconeIndex();
   }
@@ -48,5 +49,9 @@ export async function upsertVectors<TableName extends TableNames>(
       })
     );
   }
+  console.log({
+    batchSize: vectors.length,
+    pineconeUpsertMs: Date.now() - start,
+  });
   return results;
 }
