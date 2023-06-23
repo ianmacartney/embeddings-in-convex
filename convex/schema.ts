@@ -34,6 +34,7 @@ export default defineSchema({
   searches: defineTable({
     // The Pinecone ID is the search's _id
     input: v.string(),
+    float32Buffer: v.optional(v.bytes()),
     relatedChunks: v.optional(
       v.array(
         v.object({
