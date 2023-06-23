@@ -180,7 +180,24 @@ export const patch = internalMutation({
 export const paginate = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async ({ db }, { paginationOpts }) => {
-    return await db.query("sources").order("desc").paginate(paginationOpts);
+    const results = await db
+      .query("sources")
+      .order("desc")
+      .paginate(paginationOpts);
+
+    return {
+      ...results,
+      page: await Promise.all(
+        results.page.map(async (source) => {
+          let firstChunkText = "";
+          if (source.chunkIds.length) {
+            const firstChunk = await db.get(source.chunkIds[0]);
+            firstChunkText = firstChunk?.text ?? "";
+          }
+          return { ...source, firstChunkText };
+        })
+      ),
+    };
   },
 });
 
@@ -201,20 +218,6 @@ export const getChunk = query({
       throw new Error("Document not found: " + id);
     }
     return doc;
-  },
-});
-export const getChunks = query({
-  args: { ids: v.array(v.id("chunks")) },
-  handler: async ({ db }, { ids }) => {
-    return Promise.all(
-      ids.map(async (id) => {
-        const doc = await db.get(id);
-        if (!doc) {
-          throw new Error("Document not found: " + id);
-        }
-        return doc;
-      })
-    );
   },
 });
 
