@@ -158,7 +158,7 @@ export function PreviousSearches({
             <Table.Th align="left">Tokens</Table.Th>
             <Table.Th align="left">Results</Table.Th>
             <Table.Th align="left">Embedding</Table.Th>
-            <Table.Th align="left">Pinecone</Table.Th>
+            <Table.Th align="left">Query</Table.Th>
             <Table.Th align="left"></Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -186,7 +186,6 @@ export function PreviousSearches({
                   onClick={() =>
                     search({
                       input: result.input,
-                      topK: result.count,
                       searchId: result._id,
                     }).then(() =>
                       reuseSearch({ text: result.input, searchId: result._id })

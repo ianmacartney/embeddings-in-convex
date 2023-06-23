@@ -3,9 +3,9 @@ import { PaginationOptions, paginationOptsValidator } from "convex/server";
 import { api } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { fetchEmbeddingBatch } from "./lib/embeddings";
-import { pineconeIndex, upsertVectors } from "./lib/pinecone";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
+import { pineconeIndex } from "./lib/pinecone";
 
 export const paginateChunks = query(
   async ({ db }, { paginationOpts }: { paginationOpts: PaginationOptions }) => {
@@ -30,11 +30,13 @@ export const insert = internalMutation(
     {
       name,
       chunks,
+      float32Buffers,
       totalTokens,
       embeddingMs,
     }: {
       name: string;
       chunks: { text: string; lines: { from: number; to: number } }[];
+      float32Buffers: ArrayBuffer[];
       totalTokens: number;
       embeddingMs: number;
     }
@@ -42,21 +44,26 @@ export const insert = internalMutation(
     const sourceId = await db.insert("sources", {
       name,
       chunkIds: [],
-      saved: false,
+      saved: true, // Saving the vectors in Convex directly
       totalTokens,
       embeddingMs,
     });
     const totalLength = textLength(chunks);
     const chunkIds = await Promise.all(
-      chunks.map(({ text, lines }, chunkIndex) =>
-        db.insert("chunks", {
+      chunks.map(async ({ text, lines }, chunkIndex) => {
+        const chunkId = await db.insert("chunks", {
           text,
           sourceId,
           chunkIndex,
           lines,
           tokens: Math.ceil((totalTokens * text.length) / totalLength),
-        })
-      )
+        });
+        await db.insert("vectors", {
+          chunkId,
+          float32Buffer: float32Buffers[chunkIndex],
+        });
+        return chunkId;
+      })
     );
     await db.patch(sourceId, { chunkIds });
     return { sourceId, chunkIds };
@@ -83,23 +90,12 @@ export const add = action(
       totalTokens,
       embeddingMs,
     });
-    const { sourceId, chunkIds } = await runMutation(api.sources.insert, {
+    await runMutation(api.sources.insert, {
       name,
       chunks,
+      float32Buffers: embeddings.map((e) => Float32Array.from(e).buffer),
       totalTokens,
       embeddingMs,
-    });
-    await upsertVectors(
-      "chunks",
-      chunkIds.map((id, chunkIndex) => ({
-        id,
-        values: embeddings[chunkIndex],
-        metadata: { name, sourceId: sourceId, chunkIndex },
-      }))
-    );
-    await runMutation(api.sources.patch, {
-      id: sourceId,
-      patch: { saved: true },
     });
   }
 );
@@ -139,46 +135,26 @@ export const addBatch = action(
       (acc, cur) => [...acc, acc[acc.length - 1] + cur.chunks.length],
       [0]
     );
-    const sources = await Promise.all(
+    await Promise.all(
       batch.map(({ name, chunks }, idx) =>
         limit(async () => {
           const sourceLength = textLength(chunks);
           const portion = sourceLength / totalLength;
-          const { sourceId, chunkIds } = await runMutation(api.sources.insert, {
+          await runMutation(api.sources.insert, {
             name,
             chunks,
+            float32Buffers: embeddings
+              .slice(offsets[idx], offsets[idx] + chunks.length)
+              .map((e) => Float32Array.from(e).buffer),
             // estimate
             embeddingMs: Math.ceil(embeddingMs * portion),
             totalTokens: Math.ceil(totalTokens * portion),
           });
-          const vectors = chunkIds.map((id, chunkIndex) => ({
-            id,
-            values: embeddings[offsets[idx] + chunkIndex],
-            metadata: { name, sourceId: sourceId, chunkIndex },
-          }));
-          return { sourceId, vectors };
         })
       )
     );
-    const vectors = sources.flatMap(({ vectors }) => vectors);
-    await upsertVectors("chunks", vectors);
-    await Promise.all(
-      sources.map(async ({ sourceId }) => {
-        await runMutation(api.sources.patch, {
-          id: sourceId,
-          patch: { saved: true },
-        });
-      })
-    );
   }
 );
-
-export const patch = internalMutation({
-  args: { id: v.id("sources"), patch: v.any() },
-  handler: async ({ db }, { id, patch }) => {
-    return await db.patch(id, patch);
-  },
-});
 
 export const paginate = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -205,21 +181,11 @@ export const paginate = query({
 });
 
 export const deleteSource = mutation(
-  async ({ db, scheduler }, { id }: { id: Id<"sources"> }) => {
+  async ({ db }, { id }: { id: Id<"sources"> }) => {
     const source = await db.get(id);
     if (!source) return;
     await db.delete(id);
     await Promise.all(source.chunkIds.map(db.delete));
-    scheduler.runAfter(0, api.sources.deletePineconeVectors, {
-      ids: source.chunkIds,
-    });
-  }
-);
-
-export const deletePineconeVectors = action(
-  async (_, { ids }: { ids: string[] }) => {
-    const pinecone = await pineconeIndex();
-    await pinecone.delete1({ namespace: "chunks", ids });
   }
 );
 
@@ -237,3 +203,50 @@ export const getChunk = query({
 function textLength(chunks: { text: string }[]) {
   return chunks.reduce((sum, cur) => sum + cur.text.length, 0);
 }
+
+export const addVectorBatch = mutation(
+  async (
+    { db },
+    {
+      batch,
+    }: { batch: { chunkId: Id<"chunks">; float32Buffer: ArrayBuffer }[] }
+  ) => {
+    await Promise.all(
+      batch.map(async (vector) => {
+        const existing = await db
+          .query("vectors")
+          .withIndex("by_chunkId", (q) => q.eq("chunkId", vector.chunkId))
+          .unique();
+        if (!existing) await db.insert("vectors", vector);
+      })
+    );
+  }
+);
+
+export const copyToConvex = action(async ({ runMutation, runQuery }) => {
+  let cursor: string | null = null;
+  let isDone = false;
+  while (!isDone) {
+    const result: {
+      continueCursor: string;
+      isDone: boolean;
+      page: Doc<"chunks">[];
+    } = await runQuery(api.sources.paginateChunks, {
+      paginationOpts: { cursor, numItems: 100 },
+    });
+    const pinecone = await pineconeIndex();
+    const { vectors } = await pinecone.fetch({
+      namespace: "chunks",
+      ids: result.page.map((chunk) => chunk._id),
+    });
+    if (!vectors) throw new Error("No vectors from Pinecone");
+    await runMutation(api.sources.addVectorBatch, {
+      batch: result.page.map((chunk) => ({
+        chunkId: chunk._id,
+        float32Buffer: Float32Array.from(vectors[chunk._id].values).buffer,
+      })),
+    });
+
+    ({ isDone, continueCursor: cursor } = result);
+  }
+});

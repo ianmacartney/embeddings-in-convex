@@ -1,13 +1,11 @@
 import { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import { action, internalMutation, mutation, query } from "./_generated/server";
-import { pineconeIndex } from "./lib/pinecone";
-import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 import { pruneNull } from "./lib/utils";
+import { compareTo } from "./lib/vectors";
 
 export const upsert = mutation(
   async (
-    { db, scheduler },
+    { db },
     { target, count }: { target: Id<"chunks">; count?: number }
   ) => {
     const topK = count || 10;
@@ -17,57 +15,22 @@ export const upsert = mutation(
       .filter((q) => q.gte(q.field("count"), topK))
       .unique();
     if (existing) return existing._id;
+
+    const vector = await db
+      .query("vectors")
+      .withIndex("by_chunkId", (q) => q.eq("chunkId", target))
+      .unique();
+    if (!vector) throw new Error("No vector found");
+    const matches = await compareTo(db, new Float32Array(vector.float32Buffer));
+    const relatedChunks = matches
+      .filter(({ id }) => id !== target)
+      .slice(0, topK);
     const comparisonId = await db.insert("comparisons", {
       target,
+      relatedChunks,
       count: topK,
     });
-    await scheduler.runAfter(0, api.comparisons.compare, {
-      target,
-      comparisonId,
-      topK,
-    });
     return comparisonId;
-  }
-);
-
-export const compare = action(
-  async (
-    { runMutation },
-    {
-      target,
-      comparisonId,
-      topK,
-    }: { target: Id<"chunks">; comparisonId?: Id<"comparisons">; topK: number }
-  ) => {
-    const pineconeStart = Date.now();
-    const pinecone = await pineconeIndex();
-    const { matches } = await pinecone.query({
-      queryRequest: {
-        namespace: "chunks",
-        topK,
-        id: target,
-      },
-    });
-    if (!matches) throw new Error("Pinecone matches are empty");
-    const relatedChunks = matches.map(({ id, score }) => ({
-      id: id as Id<"chunks">,
-      score,
-    }));
-    const queryMs = Date.now() - pineconeStart;
-    console.log({
-      queryMs,
-    });
-    if (comparisonId) {
-      await runMutation(api.comparisons.patch, {
-        id: comparisonId,
-        patch: {
-          relatedChunks,
-          // stats
-          queryMs,
-        },
-      });
-    }
-    return relatedChunks;
   }
 );
 
@@ -100,10 +63,3 @@ export const get = query(
     );
   }
 );
-
-export const patch = internalMutation({
-  args: { id: v.id("comparisons"), patch: v.any() },
-  handler: async ({ db }, { id, patch }) => {
-    return await db.patch(id, patch);
-  },
-});

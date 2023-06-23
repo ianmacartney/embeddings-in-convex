@@ -2,9 +2,15 @@ import { v } from "convex/values";
 import { defineSchema, defineTable } from "convex/server";
 
 export default defineSchema({
+  // As an alternative to a dedicated vector database, you can
+  // store embeddings as bytes in Convex.
+  vectors: defineTable({
+    float32Buffer: v.bytes(),
+    chunkId: v.id("chunks"),
+  }).index("by_chunkId", ["chunkId"]),
+
   // Chunks are one part of a Source, broken up to generate embeddings.
   chunks: defineTable({
-    // The Pinecone ID is the chunk's _id
     // raw text: ~1k bytes or less
     text: v.string(),
     sourceId: v.id("sources"),
@@ -32,7 +38,6 @@ export default defineSchema({
 
   // Searches track a comparison between an input string and related chunks.
   searches: defineTable({
-    // The Pinecone ID is the search's _id
     input: v.string(),
     float32Buffer: v.optional(v.bytes()),
     relatedChunks: v.optional(

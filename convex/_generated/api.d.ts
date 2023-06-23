@@ -15,6 +15,7 @@ import type * as lib_embeddings from "../lib/embeddings";
 import type * as lib_migrations from "../lib/migrations";
 import type * as lib_pinecone from "../lib/pinecone";
 import type * as lib_utils from "../lib/utils";
+import type * as lib_vectors from "../lib/vectors";
 import type * as searches from "../searches";
 import type * as sources from "../sources";
 
@@ -32,6 +33,7 @@ export declare const api: ApiFromModules<{
   "lib/migrations": typeof lib_migrations;
   "lib/pinecone": typeof lib_pinecone;
   "lib/utils": typeof lib_utils;
+  "lib/vectors": typeof lib_vectors;
   searches: typeof searches;
   sources: typeof sources;
 }>;
