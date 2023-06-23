@@ -12,8 +12,7 @@ export function useComparison() {
         upsertComparison({ target: chunkId, count: 10 }).then((id) =>
           setTarget({ chunkId, comparisonId: id })
         );
-        // console.log(compareRef.current);
-        // compareRef.current?.click();
+        // Super hacky, couldn't figure out how to select it otherwise.
         document.getElementById("compare")?.click();
       } else {
         setTarget(undefined);
