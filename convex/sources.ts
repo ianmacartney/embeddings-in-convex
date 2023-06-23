@@ -3,7 +3,7 @@ import { PaginationOptions, paginationOptsValidator } from "convex/server";
 import { api } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { fetchEmbeddingBatch } from "./lib/embeddings";
-import { upsertVectors } from "./lib/pinecone";
+import { pineconeIndex, upsertVectors } from "./lib/pinecone";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -205,11 +205,21 @@ export const paginate = query({
 });
 
 export const deleteSource = mutation(
-  async ({ db }, { id }: { id: Id<"sources"> }) => {
+  async ({ db, scheduler }, { id }: { id: Id<"sources"> }) => {
     const source = await db.get(id);
     if (!source) return;
     await db.delete(id);
     await Promise.all(source.chunkIds.map(db.delete));
+    scheduler.runAfter(0, api.sources.deletePineconeVectors, {
+      ids: source.chunkIds,
+    });
+  }
+);
+
+export const deletePineconeVectors = action(
+  async (_, { ids }: { ids: string[] }) => {
+    const pinecone = await pineconeIndex();
+    await pinecone.delete1({ namespace: "chunks", ids });
   }
 );
 
