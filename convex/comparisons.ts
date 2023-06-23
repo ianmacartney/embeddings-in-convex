@@ -1,8 +1,9 @@
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
-import { pineconeClient } from "./lib/pinecone";
+import { pineconeIndex } from "./lib/pinecone";
 import { v } from "convex/values";
+import { pruneNull } from "./lib/utils";
 
 export const upsert = mutation(
   async (
@@ -39,7 +40,7 @@ export const compare = action(
     }: { target: Id<"chunks">; comparisonId?: Id<"comparisons">; topK: number }
   ) => {
     const pineconeStart = Date.now();
-    const pinecone = await pineconeClient();
+    const pinecone = await pineconeIndex();
     const { matches } = await pinecone.query({
       queryRequest: {
         namespace: "chunks",
@@ -75,23 +76,28 @@ export const get = query(
     const comparison = await db.get(comparisonId);
     if (!comparison) throw new Error("Unknown comparison");
     if (!comparison.relatedChunks) return null;
-    const target = (await db.get(comparison.target))!;
-    return {
-      ...comparison,
-      relatedChunks: await Promise.all(
-        comparison.relatedChunks
-          .filter(({ id }) => id !== comparison.target)
-          .map(async ({ id, score }) => {
-            const chunk = await db.get(id);
-            const source = await db.get(chunk!.sourceId);
-            return { ...chunk!, score, sourceName: source!.name };
-          })
-      ),
-      target: {
-        ...target,
-        sourceName: (await db.get(target.sourceId))!.name,
-      },
-    };
+    const target = await db.get(comparison.target);
+    return (
+      target && {
+        ...comparison,
+        relatedChunks: pruneNull(
+          await Promise.all(
+            comparison.relatedChunks
+              .filter(({ id }) => id !== comparison.target)
+              .map(async ({ id, score }) => {
+                const chunk = await db.get(id);
+                if (!chunk) return null;
+                const source = await db.get(chunk.sourceId);
+                return { ...chunk, score, sourceName: source!.name };
+              })
+          )
+        ),
+        target: {
+          ...target,
+          sourceName: (await db.get(target.sourceId))!.name,
+        },
+      }
+    );
   }
 );
 

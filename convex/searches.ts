@@ -1,10 +1,11 @@
 import { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
-import { pineconeClient } from "./lib/pinecone";
+import { pineconeIndex, upsertVectors } from "./lib/pinecone";
 import { fetchEmbedding } from "./lib/embeddings";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
+import { pruneNull } from "./lib/utils";
 
 export const upsert = mutation(
   async (
@@ -47,7 +48,7 @@ export const search = action(
       embeddingMs,
     } = await fetchEmbedding(input);
     const pineconeStart = Date.now();
-    const pinecone = await pineconeClient();
+    const pinecone = await pineconeIndex();
     const { matches } = await pinecone.query({
       queryRequest: {
         namespace: "chunks",
@@ -62,12 +63,11 @@ export const search = action(
     }));
     const pineconeMs = Date.now() - pineconeStart;
     if (searchId) {
-      await pinecone.upsert({
-        upsertRequest: {
-          namespace: "searches",
-          vectors: [{ id: searchId, values: embedding, metadata: { input } }],
-        },
-      });
+      await upsertVectors(
+        "searches",
+        [{ id: searchId, values: embedding, metadata: { input } }],
+        pinecone
+      );
       const saveSearchMs = Date.now() - pineconeStart - pineconeMs;
       console.log({
         inputTokens,
@@ -97,11 +97,13 @@ export const wordSearch = query(
       .query("chunks")
       .withSearchIndex("text", (q) => q.search("text", input))
       .take(count);
-    return await Promise.all(
-      results.map(async (chunk) => {
-        const source = await db.get(chunk.sourceId);
-        return { ...chunk, sourceName: source!.name };
-      })
+    return pruneNull(
+      await Promise.all(
+        results.map(async (chunk) => {
+          const source = await db.get(chunk.sourceId);
+          return source && { ...chunk, sourceName: source.name };
+        })
+      )
     );
   }
 );
@@ -111,12 +113,15 @@ export const semanticSearch = query(
     const search = await db.get(searchId);
     if (!search) throw new Error("Unknown search " + searchId);
     if (!search.relatedChunks) return null;
-    return await Promise.all(
-      search.relatedChunks.map(async ({ id, score }) => {
-        const chunk = await db.get(id);
-        const source = await db.get(chunk!.sourceId);
-        return { ...chunk!, score, sourceName: source!.name };
-      })
+    return pruneNull(
+      await Promise.all(
+        search.relatedChunks.map(async ({ id, score }) => {
+          const chunk = await db.get(id);
+          if (!chunk) return null;
+          const source = await db.get(chunk.sourceId);
+          return { ...chunk, score, sourceName: source!.name };
+        })
+      )
     );
   }
 );
@@ -127,6 +132,7 @@ export const patch = internalMutation({
     return await db.patch(id, patch);
   },
 });
+
 export const paginate = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async ({ db }, { paginationOpts }) => {

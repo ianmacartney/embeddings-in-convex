@@ -1,5 +1,5 @@
-import { usePaginatedQuery, useQuery } from "convex/react";
-import { Table } from "@rewind-ui/core";
+import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
+import { Button, Table } from "@rewind-ui/core";
 import { api } from "../convex/_generated/api";
 
 export function Sources() {
@@ -12,6 +12,7 @@ export function Sources() {
     useQuery(api.sources.getChunks, {
       ids: sources.map((s) => s.chunkIds[0]),
     }) ?? [];
+  const deleteSource = useMutation(api.sources.deleteSource);
   return (
     <>
       <Table>
@@ -21,6 +22,7 @@ export function Sources() {
             <Table.Th align="left">Chunks</Table.Th>
             <Table.Th align="left">Content</Table.Th>
             <Table.Th align="left">Tokens</Table.Th>
+            <Table.Th align="left"></Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
@@ -35,6 +37,14 @@ export function Sources() {
               </Table.Td>
               <Table.Td>
                 {source.saved ? source.totalTokens : "Unsaved"}
+              </Table.Td>
+              <Table.Td>
+                <Button
+                  color="red"
+                  onClick={() => deleteSource({ id: source._id })}
+                >
+                  Delete
+                </Button>
               </Table.Td>
             </Table.Tr>
           ))}

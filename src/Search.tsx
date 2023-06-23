@@ -72,7 +72,7 @@ function SearchBar({
         }).then((searchId) => setTarget({ text: input, searchId }));
       }}
     >
-      <InputGroup>
+      <InputGroup className="w-full">
         <InputGroup.Text>
           <MagnifyingGlass weight="duotone" />
         </InputGroup.Text>
