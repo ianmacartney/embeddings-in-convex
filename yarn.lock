@@ -497,10 +497,10 @@
   dependencies:
     cross-fetch "^3.1.5"
 
-"@rewind-ui/core@^0.8.0":
-  version "0.8.0"
-  resolved "https://registry.yarnpkg.com/@rewind-ui/core/-/core-0.8.0.tgz#39bcadea96f87a8a914161b2b919ae5cf77f2784"
-  integrity sha512-Z5+de38/v5iZyEfPLALZd9P9o3mC8qc02IhC03cpyBHysaqJIgPxaVkiErqzRkChpjNgv4TtFzs3Dpjl+wDCpA==
+"@rewind-ui/core@^0.10.1":
+  version "0.10.1"
+  resolved "https://registry.yarnpkg.com/@rewind-ui/core/-/core-0.10.1.tgz#884a17850cc985df9a215f02ca680872ed06ee8e"
+  integrity sha512-W8rU8IVibjmQszcLw8BCN92i9x82X4Bz5HD7udIrJT6h6v0Qls5yeIO7NULPusamFLrgsoE96dksNufr0bdaHw==
   dependencies:
     "@floating-ui/react" "^0.24.3"
     "@floating-ui/react-dom" "^2.0.1"

@@ -12,7 +12,7 @@
   "dependencies": {
     "@phosphor-icons/react": "^2.0.10",
     "@pinecone-database/pinecone": "^0.1.6",
-    "@rewind-ui/core": "^0.8.0",
+    "@rewind-ui/core": "^0.10.1",
     "@tailwindcss/forms": "^0.5.3",
     "@tailwindcss/typography": "^0.5.9",
     "convex": "^0.17.0",

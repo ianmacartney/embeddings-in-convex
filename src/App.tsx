@@ -8,16 +8,19 @@ import { Search } from "./Search";
 import { Compare } from "./Compare";
 import { useComparison } from "./useComparison";
 import { Prompt } from "./Prompt";
+import { useRef } from "react";
 
 function App() {
-  const [target, compare] = useComparison();
+  const compareRef = useRef<HTMLButtonElement>(null);
+  console.log(compareRef);
+  const [target, compare] = useComparison(compareRef);
   return (
     <EnvCheck>
       <Tabs defaultTab="sources">
         <Tabs.List>
           <Tabs.Tab anchor="sources">Sources</Tabs.Tab>
           <Tabs.Tab anchor="search">Search</Tabs.Tab>
-          <Tabs.Tab id="compare" anchor="compare">
+          <Tabs.Tab ref={compareRef} anchor="compare">
             Compare
           </Tabs.Tab>
           <Tabs.Tab id="prompt" anchor="prompt">

@@ -1,9 +1,9 @@
 import { useMutation } from "convex/react";
-import { useCallback, useState } from "react";
+import { RefObject, useCallback, useState } from "react";
 import { Id } from "../convex/_generated/dataModel";
 import { api } from "../convex/_generated/api";
 
-export function useComparison() {
+export function useComparison(ref: RefObject<HTMLButtonElement>) {
   const [target, setTarget] = useState<Target>();
   const upsertComparison = useMutation(api.comparisons.upsert);
   const compare = useCallback(
@@ -12,13 +12,12 @@ export function useComparison() {
         upsertComparison({ target: chunkId, count: 10 }).then((id) =>
           setTarget({ chunkId, comparisonId: id })
         );
-        // Super hacky, couldn't figure out how to select it otherwise.
-        document.getElementById("compare")?.click();
+        ref.current?.click();
       } else {
         setTarget(undefined);
       }
     },
-    [upsertComparison]
+    [upsertComparison, ref]
   );
 
   return [target, compare] as const;
