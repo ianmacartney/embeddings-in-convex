@@ -14,22 +14,6 @@ import { pineconeIndex, upsertVectors } from "./lib/pinecone";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
 
-export const paginateChunks = query(
-  async ({ db }, { paginationOpts }: { paginationOpts: PaginationOptions }) => {
-    const results = await db.query("chunks").paginate(paginationOpts);
-
-    return {
-      ...results,
-      page: await Promise.all(
-        results.page.map(async (chunk) => {
-          const source = await db.get(chunk.sourceId);
-          return { ...chunk, sourceName: source!.name };
-        })
-      ),
-    };
-  }
-);
-
 type InputChunk = { text: string; lines: { from: number; to: number } };
 
 // Insert the source into the DB, along with the associated chunks.
@@ -232,6 +216,22 @@ export const deletePineconeVectors = action(
   async (_, { ids }: { ids: string[] }) => {
     const pinecone = await pineconeIndex();
     await pinecone.delete1({ namespace: "chunks", ids });
+  }
+);
+
+export const paginateChunks = query(
+  async ({ db }, { paginationOpts }: { paginationOpts: PaginationOptions }) => {
+    const results = await db.query("chunks").paginate(paginationOpts);
+
+    return {
+      ...results,
+      page: await Promise.all(
+        results.page.map(async (chunk) => {
+          const source = await db.get(chunk.sourceId);
+          return { ...chunk, sourceName: source!.name };
+        })
+      ),
+    };
   }
 );
 
