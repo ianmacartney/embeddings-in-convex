@@ -50,7 +50,7 @@ export async function upsertVectors<TableName extends TableNames>(
     );
   }
   console.log({
-    batchSize: vectors.length,
+    count: vectors.length,
     pineconeUpsertMs: Date.now() - start,
   });
   return results;

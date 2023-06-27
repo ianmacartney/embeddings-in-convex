@@ -78,7 +78,7 @@ export const addEmbedding = internalAction(
       source.chunkIds.map((id, chunkIndex) => ({
         id,
         values: embeddings[chunkIndex],
-        metadata: { name, sourceId: source._id, chunkIndex },
+        metadata: { sourceId: source._id, textLen: texts[chunkIndex].length },
       }))
     );
     await runMutation(api.sources.patch, {
@@ -129,11 +129,11 @@ export const addEmbeddingBatch = internalAction(
       [0]
     );
     const vectors = await Promise.all(
-      batch.map(({ source }, idx) => {
+      batch.map(({ source, texts }, idx) => {
         const vectors = source.chunkIds.map((id, chunkIndex) => ({
           id,
           values: embeddings[offsets[idx] + chunkIndex],
-          metadata: { name, sourceId: source._id, chunkIndex },
+          metadata: { sourceId: source._id, textLen: texts[idx].length },
         }));
         return vectors;
       })
