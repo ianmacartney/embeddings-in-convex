@@ -15,26 +15,6 @@ import { Doc, Id } from "./_generated/dataModel";
 
 type InputChunk = { text: string; lines: { from: number; to: number } };
 
-// Insert the source into the DB, along with the associated chunks.
-export const add = mutation(
-  async (
-    { db, scheduler },
-    {
-      name,
-      chunks,
-    }: {
-      name: string;
-      chunks: InputChunk[];
-    }
-  ) => {
-    const source = await addSource(db, name, chunks);
-    await scheduler.runAfter(0, api.sources.addEmbedding, {
-      source,
-      texts: chunks.map(({ text }) => text),
-    });
-  }
-);
-
 async function addSource(
   db: DatabaseWriter,
   name: string,
@@ -58,6 +38,26 @@ async function addSource(
   await db.patch(sourceId, { chunkIds });
   return (await db.get(sourceId))!;
 }
+
+// Insert the source into the DB, along with the associated chunks.
+export const add = mutation(
+  async (
+    { db, scheduler },
+    {
+      name,
+      chunks,
+    }: {
+      name: string;
+      chunks: InputChunk[];
+    }
+  ) => {
+    const source = await addSource(db, name, chunks);
+    await scheduler.runAfter(0, api.sources.addEmbedding, {
+      source,
+      texts: chunks.map(({ text }) => text),
+    });
+  }
+);
 
 // Make embeddings for a source's chunks and store them.
 export const addEmbedding = internalAction(
