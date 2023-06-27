@@ -1,11 +1,18 @@
 import pLimit from "p-limit";
 import { PaginationOptions, paginationOptsValidator } from "convex/server";
 import { api } from "./_generated/api";
-import { action, internalMutation, mutation, query } from "./_generated/server";
+import {
+  DatabaseWriter,
+  action,
+  internalAction,
+  internalMutation,
+  mutation,
+  query,
+} from "./_generated/server";
 import { fetchEmbeddingBatch } from "./lib/embeddings";
 import { pineconeIndex, upsertVectors } from "./lib/pinecone";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 
 export const paginateChunks = query(
   async ({ db }, { paginationOpts }: { paginationOpts: PaginationOptions }) => {
@@ -23,83 +30,77 @@ export const paginateChunks = query(
   }
 );
 
+type InputChunk = { text: string; lines: { from: number; to: number } };
+
 // Insert the source into the DB, along with the associated chunks.
-export const insert = internalMutation(
+export const add = mutation(
   async (
-    { db },
+    { db, scheduler },
     {
       name,
       chunks,
-      totalTokens,
-      embeddingMs,
     }: {
       name: string;
-      chunks: { text: string; lines: { from: number; to: number } }[];
-      totalTokens: number;
-      embeddingMs: number;
+      chunks: InputChunk[];
     }
   ) => {
-    const sourceId = await db.insert("sources", {
-      name,
-      chunkIds: [],
-      saved: false,
-      totalTokens,
-      embeddingMs,
+    const source = await addSource(db, name, chunks);
+    await scheduler.runAfter(0, api.sources.addEmbedding, {
+      source,
+      texts: chunks.map(({ text }) => text),
     });
-    const totalLength = textLength(chunks);
-    const chunkIds = await Promise.all(
-      chunks.map(({ text, lines }, chunkIndex) =>
-        db.insert("chunks", {
-          text,
-          sourceId,
-          chunkIndex,
-          lines,
-          tokens: Math.ceil((totalTokens * text.length) / totalLength),
-        })
-      )
-    );
-    await db.patch(sourceId, { chunkIds });
-    return { sourceId, chunkIds };
   }
 );
 
-// Create a new source with the given chunks, storing embeddings for the chunks.
-export const add = action(
+async function addSource(
+  db: DatabaseWriter,
+  name: string,
+  chunks: InputChunk[]
+) {
+  const sourceId = await db.insert("sources", {
+    name,
+    chunkIds: [],
+    saved: false,
+  });
+  const chunkIds = await Promise.all(
+    chunks.map(({ text, lines }, chunkIndex) =>
+      db.insert("chunks", {
+        text,
+        sourceId,
+        chunkIndex,
+        lines,
+      })
+    )
+  );
+  await db.patch(sourceId, { chunkIds });
+  return (await db.get(sourceId))!;
+}
+
+// Make embeddings for a source's chunks and store them.
+export const addEmbedding = internalAction(
   async (
     { runMutation },
-    {
-      name,
-      chunks,
-    }: {
-      name: string;
-      chunks: { text: string; lines: { from: number; to: number } }[];
-    }
+    { source, texts }: { source: Doc<"sources">; texts: string[] }
   ) => {
     const { embeddings, embeddingMs, totalTokens } = await fetchEmbeddingBatch(
-      chunks.map(({ text }) => text.replace(/\n/g, " "))
+      texts
     );
     console.log({
-      batchSize: chunks.length,
-      totalTokens,
-      embeddingMs,
-    });
-    const { sourceId, chunkIds } = await runMutation(api.sources.insert, {
-      name,
-      chunks,
+      batchSize: texts.length,
       totalTokens,
       embeddingMs,
     });
     await upsertVectors(
       "chunks",
-      chunkIds.map((id, chunkIndex) => ({
+      source.chunkIds.map((id, chunkIndex) => ({
         id,
         values: embeddings[chunkIndex],
-        metadata: { name, sourceId: sourceId, chunkIndex },
+        metadata: { name, sourceId: source._id, chunkIndex },
       }))
     );
     await runMutation(api.sources.patch, {
-      id: sourceId,
-      patch: { saved: true },
+      id: source._id,
+      patch: { saved: true, totalTokens, embeddingMs },
     });
   }
 );
@@ -107,9 +108,9 @@ export const add = action(
 /**
  * Add a batch of sources, where each one is a named source with all chunks.
  */
-export const addBatch = action(
+export const addBatch = mutation(
   async (
-    { runMutation },
+    { db, scheduler },
     {
       batch,
     }: {
@@ -119,59 +120,70 @@ export const addBatch = action(
       }[];
     }
   ) => {
+    await scheduler.runAfter(0, api.sources.addEmbeddingBatch, {
+      batch: await Promise.all(
+        batch.map(async ({ name, chunks }) => ({
+          source: await addSource(db, name, chunks),
+          texts: chunks.map(({ text }) => text),
+        }))
+      ),
+    });
+  }
+);
+
+export const addEmbeddingBatch = internalAction(
+  async (
+    { runMutation },
+    { batch }: { batch: { source: Doc<"sources">; texts: string[] }[] }
+  ) => {
     // Calculate all the embeddings for all sources at once.
     const { embeddings, totalTokens, embeddingMs } = await fetchEmbeddingBatch(
-      batch.flatMap(({ chunks }) =>
-        chunks.map(({ text }) => text.replace(/\n/g, " "))
-      )
+      batch.flatMap(({ texts }) => texts)
+    );
+    console.log({ batchSize: embeddings.length, totalTokens, embeddingMs });
+    const offsets = batch.reduce(
+      (acc, { texts }) => [...acc, acc[acc.length - 1] + texts.length],
+      [0]
+    );
+    const vectors = await Promise.all(
+      batch.map(({ source }, idx) => {
+        const vectors = source.chunkIds.map((id, chunkIndex) => ({
+          id,
+          values: embeddings[offsets[idx] + chunkIndex],
+          metadata: { name, sourceId: source._id, chunkIndex },
+        }));
+        return vectors;
+      })
+    );
+    await upsertVectors(
+      "chunks",
+      vectors.flatMap((vectors) => vectors)
     );
     // The length of all strings put together.
     const totalLength = batch.reduce(
-      (sum, { chunks }) => sum + textLength(chunks),
+      (sum, { texts }) => sum + textLength(texts),
       0
     );
-    console.log({ batchSize: embeddings.length, totalTokens, embeddingMs });
-    // This allows us to only run 100 inserts in parallel at once.
-    // We could also add a batch insert mutation in the future.
-    const limit = pLimit(100);
-    // How far into the overall embeddigns list to pull a given batch.
-    const offsets = batch.reduce(
-      (acc, cur) => [...acc, acc[acc.length - 1] + cur.chunks.length],
-      [0]
-    );
-    const sources = await Promise.all(
-      batch.map(({ name, chunks }, idx) =>
-        limit(async () => {
-          const sourceLength = textLength(chunks);
-          const portion = sourceLength / totalLength;
-          const { sourceId, chunkIds } = await runMutation(api.sources.insert, {
-            name,
-            chunks,
-            // estimate
+    await Promise.all(
+      batch.map(async ({ source, texts }) => {
+        const sourceLength = textLength(texts);
+        const portion = sourceLength / totalLength;
+        await runMutation(api.sources.patch, {
+          id: source._id,
+          patch: {
+            saved: true,
             embeddingMs: Math.ceil(embeddingMs * portion),
             totalTokens: Math.ceil(totalTokens * portion),
-          });
-          const vectors = chunkIds.map((id, chunkIndex) => ({
-            id,
-            values: embeddings[offsets[idx] + chunkIndex],
-            metadata: { name, sourceId: sourceId, chunkIndex },
-          }));
-          return { sourceId, vectors };
-        })
-      )
-    );
-    const vectors = sources.flatMap(({ vectors }) => vectors);
-    await upsertVectors("chunks", vectors);
-    await Promise.all(
-      sources.map(async ({ sourceId }) => {
-        await runMutation(api.sources.patch, {
-          id: sourceId,
-          patch: { saved: true },
+          },
         });
       })
     );
   }
 );
+
+function textLength(texts: string[]) {
+  return texts.reduce((sum, cur) => sum + cur.length, 0);
+}
 
 export const patch = internalMutation({
   args: { id: v.id("sources"), patch: v.any() },
@@ -233,7 +245,3 @@ export const getChunk = query({
     return doc;
   },
 });
-
-function textLength(chunks: { text: string }[]) {
-  return chunks.reduce((sum, cur) => sum + cur.text.length, 0);
-}

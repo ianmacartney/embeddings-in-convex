@@ -41,7 +41,7 @@ export const uploadDocuments = async () => {
         ChunkBatchSize - chunks.length
     ) {
       console.log("Sending up a batch:", batch.length);
-      await client.action(api.sources.addBatch, { batch });
+      await client.mutation(api.sources.addBatch, { batch });
       batch = [];
     }
     batch.push({
@@ -54,7 +54,7 @@ export const uploadDocuments = async () => {
   }
   if (batch.length) {
     console.log("Sending up a final batch:", batch.length);
-    await client.action(api.sources.addBatch, { batch });
+    await client.mutation(api.sources.addBatch, { batch });
     batch = [];
   }
   console.log("Finished embedding documents. ms:", Date.now() - start);

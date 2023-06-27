@@ -11,7 +11,7 @@ export async function fetchEmbeddingBatch(texts: string[]) {
 
     body: JSON.stringify({
       model: "text-embedding-ada-002",
-      input: texts,
+      input: texts.map((text) => text.replace(/\n/g, " ")),
     }),
   });
   const embeddingMs = Date.now() - start;

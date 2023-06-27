@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { useAction } from "convex/react";
+import { useMutation } from "convex/react";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { useForm, Controller } from "react-hook-form";
 import { Alert, Input, Textarea, Button } from "@rewind-ui/core";
 import { api } from "../convex/_generated/api";
 
 export function AddSource() {
-  const createSource = useAction(api.sources.add);
+  const createSource = useMutation(api.sources.add);
   const [added, setAdded] = useState("");
 
   const { formState, handleSubmit, control, reset } = useForm<{
@@ -24,12 +24,13 @@ export function AddSource() {
           text: doc.pageContent,
           lines: doc.metadata.loc.lines,
         })),
+      }).then(() => {
+        setAdded(name);
+        setTimeout(
+          () => setAdded((state) => (state === name ? "" : state)),
+          1000
+        );
       });
-      setAdded(name);
-      setTimeout(
-        () => setAdded((state) => (state === name ? "" : state)),
-        1000
-      );
     });
   });
   useEffect(() => {
