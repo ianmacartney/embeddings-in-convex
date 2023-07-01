@@ -1,5 +1,5 @@
 import { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { pineconeIndex, upsertVectors } from "./lib/pinecone";
 import { fetchEmbedding } from "./lib/embeddings";
@@ -75,7 +75,7 @@ export const search = action(
         queryMs,
         saveSearchMs,
       });
-      await runMutation(api.searches.patch, {
+      await runMutation(internal.searches.patch, {
         id: searchId,
         patch: {
           relatedChunks,

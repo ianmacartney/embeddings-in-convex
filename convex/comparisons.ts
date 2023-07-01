@@ -1,5 +1,5 @@
 import { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { pineconeIndex } from "./lib/pinecone";
 import { v } from "convex/values";
@@ -58,7 +58,7 @@ export const compare = action(
       queryMs,
     });
     if (comparisonId) {
-      await runMutation(api.comparisons.patch, {
+      await runMutation(internal.comparisons.patch, {
         id: comparisonId,
         patch: {
           relatedChunks,

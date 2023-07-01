@@ -1,5 +1,5 @@
 import { PaginationOptions, paginationOptsValidator } from "convex/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import {
   DatabaseWriter,
   action,
@@ -52,7 +52,7 @@ export const add = mutation(
     }
   ) => {
     const source = await addSource(db, name, chunks);
-    await scheduler.runAfter(0, api.sources.addEmbedding, {
+    await scheduler.runAfter(0, internal.sources.addEmbedding, {
       source,
       texts: chunks.map(({ text }) => text),
     });
@@ -81,7 +81,7 @@ export const addEmbedding = internalAction(
         metadata: { sourceId: source._id, textLen: texts[chunkIndex].length },
       }))
     );
-    await runMutation(api.sources.patch, {
+    await runMutation(internal.sources.patch, {
       id: source._id,
       patch: { saved: true, totalTokens, embeddingMs },
     });
@@ -103,7 +103,7 @@ export const addBatch = mutation(
       }[];
     }
   ) => {
-    await scheduler.runAfter(0, api.sources.addEmbeddingBatch, {
+    await scheduler.runAfter(0, internal.sources.addEmbeddingBatch, {
       batch: await Promise.all(
         batch.map(async ({ name, chunks }) => ({
           source: await addSource(db, name, chunks),
@@ -151,7 +151,7 @@ export const addEmbeddingBatch = internalAction(
       batch.map(async ({ source, texts }) => {
         const sourceLength = textLength(texts);
         const portion = sourceLength / totalLength;
-        await runMutation(api.sources.patch, {
+        await runMutation(internal.sources.patch, {
           id: source._id,
           patch: {
             saved: true,
@@ -205,13 +205,13 @@ export const deleteSource = mutation(
     if (!source) return;
     await db.delete(id);
     await Promise.all(source.chunkIds.map(db.delete));
-    scheduler.runAfter(0, api.sources.deletePineconeVectors, {
+    scheduler.runAfter(0, internal.sources.deletePineconeVectors, {
       ids: source.chunkIds,
     });
   }
 );
 
-export const deletePineconeVectors = action(
+export const deletePineconeVectors = internalAction(
   async (_, { ids }: { ids: string[] }) => {
     const pinecone = await pineconeIndex();
     await pinecone.delete1({ namespace: "chunks", ids });
