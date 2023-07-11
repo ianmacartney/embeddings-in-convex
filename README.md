@@ -34,9 +34,8 @@ Work planned:
 
 ### Prerequisites:
 
-1. A Convex backend: you can get a free one at https://convex.dev - and running
-  `yarn convex dev` will walk you through creating the backend.
-  By making this first, you can enter environment variables for (2) and (3) on
+1. A Convex backend: it will be configured automatically on `npm run dev`.
+  By running this first, you can enter environment variables for (2) and (3) on
   the [dashboard](https://dashboard.convex.dev).
 
 2. A [Pinecone](https://app.pinecone.io/) API Key and Index. Free to start.
@@ -49,20 +48,11 @@ Work planned:
 3. An [OpenAI](https://platform.openai.com/) API key.
   Environment variable: `OPEN_API_KEY` (should start with `sk-`).
 
-### Install:
-
-Run `yarn` (or your package manager of choice)
-
 ## Run:
 
-In two separate terminals:
-
 ```bash
-	# Creates the Convex backend and syncs functions on save.
-	$ npx convex dev
-
-	# Runs the frontend using Vite.
-	$ vite
+npm install
+npm run dev
 ```
 
 ## Upload sources from a URL

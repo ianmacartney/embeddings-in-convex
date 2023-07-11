@@ -7,13 +7,11 @@ import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { pruneNull } from "./lib/utils";
 
-export const upsert = mutation(
-  async (
-    { db, scheduler },
-    { input, count: countOpt }: { input: string; count?: number }
-  ) => {
+export const upsert = mutation({
+  args: { input: v.string(), count: v.optional(v.number()) },
+  handler: async (ctx, { input, count: countOpt }) => {
     const count = countOpt || 10;
-    const existing = await db
+    const existing = await ctx.db
       .query("searches")
       .withIndex("input", (q) => q.eq("input", input))
       .filter((q) => q.gte(q.field("count"), count))
@@ -22,26 +20,24 @@ export const upsert = mutation(
       console.log("Re-using search for", input);
       return existing._id;
     }
-    const searchId = await db.insert("searches", { input, count });
+    const searchId = await ctx.db.insert("searches", { input, count });
     console.log("Starting search for", input);
-    await scheduler.runAfter(0, api.searches.search, {
+    await ctx.scheduler.runAfter(0, api.searches.search, {
       input,
       searchId,
       topK: count,
     });
     return searchId;
-  }
-);
+  },
+});
 
-export const search = action(
-  async (
-    { runMutation },
-    {
-      input,
-      topK,
-      searchId,
-    }: { input: string; topK: number; searchId?: Id<"searches"> }
-  ) => {
+export const search = action({
+  args: {
+    input: v.string(),
+    topK: v.number(),
+    searchId: v.optional(v.id("searches")),
+  },
+  handler: async (ctx, { input, topK, searchId }) => {
     const {
       embedding,
       totalTokens: inputTokens,
@@ -75,7 +71,7 @@ export const search = action(
         queryMs,
         saveSearchMs,
       });
-      await runMutation(internal.searches.patch, {
+      await ctx.runMutation(internal.searches.patch, {
         id: searchId,
         patch: {
           relatedChunks,
@@ -88,54 +84,56 @@ export const search = action(
       });
     }
     return relatedChunks;
-  }
-);
+  },
+});
 
-export const wordSearch = query(
-  async ({ db }, { input, count }: { input: string; count: number }) => {
-    const results = await db
+export const wordSearch = query({
+  args: { input: v.string(), count: v.number() },
+  handler: async (ctx, { input, count }) => {
+    const results = await ctx.db
       .query("chunks")
       .withSearchIndex("text", (q) => q.search("text", input))
       .take(count);
     return pruneNull(
       await Promise.all(
         results.map(async (chunk) => {
-          const source = await db.get(chunk.sourceId);
+          const source = await ctx.db.get(chunk.sourceId);
           return source && { ...chunk, sourceName: source.name };
         })
       )
     );
-  }
-);
+  },
+});
 
-export const semanticSearch = query(
-  async ({ db }, { searchId }: { searchId: Id<"searches"> }) => {
-    const search = await db.get(searchId);
+export const semanticSearch = query({
+  args: { searchId: v.id("searches") },
+  handler: async (ctx, { searchId }) => {
+    const search = await ctx.db.get(searchId);
     if (!search) throw new Error("Unknown search " + searchId);
     if (!search.relatedChunks) return null;
     return pruneNull(
       await Promise.all(
         search.relatedChunks.map(async ({ id, score }) => {
-          const chunk = await db.get(id);
+          const chunk = await ctx.db.get(id);
           if (!chunk) return null;
-          const source = await db.get(chunk.sourceId);
+          const source = await ctx.db.get(chunk.sourceId);
           return { ...chunk, score, sourceName: source!.name };
         })
       )
     );
-  }
-);
+  },
+});
 
 export const patch = internalMutation({
   args: { id: v.id("searches"), patch: v.any() },
-  handler: async ({ db }, { id, patch }) => {
-    return await db.patch(id, patch);
+  handler: async (ctx, { id, patch }) => {
+    return await ctx.db.patch(id, patch);
   },
 });
 
 export const paginate = query({
   args: { paginationOpts: paginationOptsValidator },
-  handler: async ({ db }, { paginationOpts }) => {
-    return await db.query("searches").paginate(paginationOpts);
+  handler: async (ctx, { paginationOpts }) => {
+    return await ctx.db.query("searches").paginate(paginationOpts);
   },
 });

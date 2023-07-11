@@ -1,14 +1,17 @@
+// import {
+//   useAction,
+//   useMutation,
+//   usePaginatedQuery,
+//   useQuery,
+// } from "convex/react";
 import {
-  useAction,
-  useMutation,
-  usePaginatedQuery,
-  useQuery,
-} from "convex/react";
-import { Accordion, Button, Table, Text, InputGroup } from "@rewind-ui/core";
-import { Id } from "../convex/_generated/dataModel";
-import { api } from "../convex/_generated/api";
-import { Loading } from "./Loading";
-import { Chunks } from "./Chunks";
+  Accordion,
+  // Button, Table, Text, InputGroup
+} from "@rewind-ui/core";
+// import { Id } from "../convex/_generated/dataModel";
+// import { api } from "../convex/_generated/api";
+// import { Loading } from "./Loading";
+// import { Chunks } from "./Chunks";
 export function Prompt() {
   return (
     <>

@@ -1,5 +1,4 @@
-import { FunctionReference, RegisteredAction, anyApi } from "convex/server";
-import type { api } from "../_generated/api";
+import { FunctionReference } from "convex/server";
 import { Doc, TableNames } from "../_generated/dataModel";
 import {
   MutationCtx,
@@ -15,7 +14,7 @@ export function migration<TableName extends TableNames>({
   migrateDoc,
 }: {
   table: TableName;
-  migrateDoc: (ctx: MutationCtx, doc: Doc<TableName>) => Promise<any>;
+  migrateDoc: (ctx: MutationCtx, doc: Doc<TableName>) => Promise<unknown>;
   batchSize?: number;
 }) {
   return internalMutation(
@@ -31,12 +30,11 @@ export function migration<TableName extends TableNames>({
         dryRun?: boolean;
       }
     ) => {
-      const { db } = ctx;
       const paginationOpts = {
         cursor: cursor ?? null,
         numItems: numItems ?? batchSize ?? DefaultBatchSize,
       };
-      const data = await db.query(table).paginate(paginationOpts);
+      const data = await ctx.db.query(table).paginate(paginationOpts);
       const { page, isDone, continueCursor } = data;
       for (const doc of page) {
         try {
@@ -65,14 +63,14 @@ type RunMigrationParams = {
 };
 
 export const runMigration = internalAction(
-  async ({ runMutation }, { name, cursor, batchSize }: RunMigrationParams) => {
+  async (ctx, { name, cursor, batchSize }: RunMigrationParams) => {
     let isDone = false;
     let total = 0;
     console.log("Running migration ", name);
     try {
       while (!isDone) {
         const args: any = { cursor, numItems: batchSize };
-        const result: any = await runMutation(name, args);
+        const result: any = await ctx.runMutation(name, args);
         if (result.isDone === undefined) {
           throw new Error(
             `${name} did not return "isDone" - is it a migration?`

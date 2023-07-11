@@ -5,40 +5,36 @@ import { pineconeIndex } from "./lib/pinecone";
 import { v } from "convex/values";
 import { pruneNull } from "./lib/utils";
 
-export const upsert = mutation(
-  async (
-    { db, scheduler },
-    { target, count }: { target: Id<"chunks">; count?: number }
-  ) => {
+export const upsert = mutation({
+  args: { target: v.id("chunks"), count: v.optional(v.number()) },
+  handler: async (ctx, { target, count }) => {
     const topK = count || 10;
-    const existing = await db
+    const existing = await ctx.db
       .query("comparisons")
       .withIndex("target", (q) => q.eq("target", target))
       .filter((q) => q.gte(q.field("count"), topK))
       .unique();
     if (existing) return existing._id;
-    const comparisonId = await db.insert("comparisons", {
+    const comparisonId = await ctx.db.insert("comparisons", {
       target,
       count: topK,
     });
-    await scheduler.runAfter(0, api.comparisons.compare, {
+    await ctx.scheduler.runAfter(0, api.comparisons.compare, {
       target,
       comparisonId,
       topK,
     });
     return comparisonId;
-  }
-);
+  },
+});
 
-export const compare = action(
-  async (
-    { runMutation },
-    {
-      target,
-      comparisonId,
-      topK,
-    }: { target: Id<"chunks">; comparisonId?: Id<"comparisons">; topK: number }
-  ) => {
+export const compare = action({
+  args: {
+    target: v.id("chunks"),
+    comparisonId: v.optional(v.id("comparisons")),
+    topK: v.number(),
+  },
+  handler: async (ctx, { target, comparisonId, topK }) => {
     const pineconeStart = Date.now();
     const pinecone = await pineconeIndex();
     const { matches } = await pinecone.query({
@@ -58,7 +54,7 @@ export const compare = action(
       queryMs,
     });
     if (comparisonId) {
-      await runMutation(internal.comparisons.patch, {
+      await ctx.runMutation(internal.comparisons.patch, {
         id: comparisonId,
         patch: {
           relatedChunks,
@@ -68,15 +64,16 @@ export const compare = action(
       });
     }
     return relatedChunks;
-  }
-);
+  },
+});
 
-export const get = query(
-  async ({ db }, { comparisonId }: { comparisonId: Id<"comparisons"> }) => {
-    const comparison = await db.get(comparisonId);
+export const get = query({
+  args: { comparisonId: v.id("comparisons") },
+  handler: async (ctx, { comparisonId }) => {
+    const comparison = await ctx.db.get(comparisonId);
     if (!comparison) throw new Error("Unknown comparison");
     if (!comparison.relatedChunks) return null;
-    const target = await db.get(comparison.target);
+    const target = await ctx.db.get(comparison.target);
     return (
       target && {
         ...comparison,
@@ -85,25 +82,25 @@ export const get = query(
             comparison.relatedChunks
               .filter(({ id }) => id !== comparison.target)
               .map(async ({ id, score }) => {
-                const chunk = await db.get(id);
+                const chunk = await ctx.db.get(id);
                 if (!chunk) return null;
-                const source = await db.get(chunk.sourceId);
+                const source = await ctx.db.get(chunk.sourceId);
                 return { ...chunk, score, sourceName: source!.name };
               })
           )
         ),
         target: {
           ...target,
-          sourceName: (await db.get(target.sourceId))!.name,
+          sourceName: (await ctx.db.get(target.sourceId))!.name,
         },
       }
     );
-  }
-);
+  },
+});
 
 export const patch = internalMutation({
   args: { id: v.id("comparisons"), patch: v.any() },
-  handler: async ({ db }, { id, patch }) => {
-    return await db.patch(id, patch);
+  handler: async (ctx, { id, patch }) => {
+    return await ctx.db.patch(id, patch);
   },
 });
