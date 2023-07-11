@@ -1,8 +1,7 @@
 import { PaginationOptions, paginationOptsValidator } from "convex/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import {
   DatabaseWriter,
-  action,
   internalAction,
   internalMutation,
   mutation,

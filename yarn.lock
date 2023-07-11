@@ -927,10 +927,10 @@ convert-source-map@^1.7.0:
   resolved "https://registry.yarnpkg.com/convert-source-map/-/convert-source-map-1.9.0.tgz#7faae62353fb4213366d0ca98358d22e8368b05f"
   integrity sha512-ASFBup0Mz1uyiIjANan1jzLQami9z1PoYSZCiiYW2FczPbenXc45FZdBZLzOT+r6+iciuEModtmCti+hjaAk0A==
 
-convex@^0.18.0:
-  version "0.18.0"
-  resolved "https://registry.yarnpkg.com/convex/-/convex-0.18.0.tgz#e5dbe8d252880ae09a87cabc521470982ac7f945"
-  integrity sha512-Ka6mDIcvkUJPiyn+G5Nn2/F9kEj7JFrYcLJt7GczWfn2f4oV4lsN3fragCdANOkgtKBxSc9WsXV4Cdg6HVZYPg==
+convex@^0.19.0:
+  version "0.19.0"
+  resolved "https://registry.yarnpkg.com/convex/-/convex-0.19.0.tgz#44b6aaa955f803e462e472cf8f6de9c5a8201de2"
+  integrity sha512-1keeqSkDHFsZGk3bhhN1IAyUvQjUERZE0c+yPnIUzA33DVgSS9efvhl6SQJoW268OrMuQ0icUTyVJwRrURmD8w==
   dependencies:
     encoding "^0.1.13"
     esbuild "^0.15.16"
