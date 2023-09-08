@@ -25,7 +25,7 @@ export async function fetchEmbeddingBatch(texts: string[]) {
     embedding: number[];
     index: number;
   }[];
-  allembeddings.sort((a, b) => b.index - a.index);
+  allembeddings.sort((a, b) => a.index - b.index);
   return {
     embeddings: allembeddings.map(({ embedding }) => embedding),
     totalTokens: jsonresults.usage.total_tokens,
