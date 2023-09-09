@@ -1,11 +1,9 @@
-import { Id } from "./_generated/dataModel";
-import { api, internal } from "./_generated/api";
-import { action, internalMutation, mutation, query } from "./_generated/server";
-import { pineconeIndex, upsertVectors } from "./lib/pinecone";
-import { fetchEmbedding } from "./lib/embeddings";
 import { v } from "convex/values";
+import { action, internalMutation, mutation, query } from "./_generated/server";
+import { api, internal } from "./_generated/api";
+import { fetchEmbedding } from "./lib/embeddings";
+import { Id } from "./_generated/dataModel";
 import { paginationOptsValidator } from "convex/server";
-import { pruneNull } from "./lib/utils";
 
 export const upsert = mutation({
   args: { input: v.string(), count: v.optional(v.number()) },
@@ -43,34 +41,25 @@ export const search = action({
       totalTokens: inputTokens,
       embeddingMs,
     } = await fetchEmbedding(input);
-    const pineconeStart = Date.now();
-    const pinecone = await pineconeIndex();
-    const { matches } = await pinecone.query({
-      queryRequest: {
-        namespace: "chunks",
-        topK,
-        vector: embedding,
-      },
+
+    const result = await ctx.vectorSearch("chunkEmbedding", "by_embedding", {
+      vector: embedding,
+      limit: 16,
     });
-    if (!matches) throw new Error("Pinecone matches are empty");
-    const relatedChunks = matches.map(({ id, score }) => ({
-      id: id as Id<"chunks">,
-      score,
+
+    if (!result) throw new Error("Pinecone matches are empty");
+
+    const relatedChunks = result.map(({ _id, _score }) => ({
+      id: _id as Id<"chunkEmbedding">,
+      score: _score,
     }));
-    const queryMs = Date.now() - pineconeStart;
+
+    console.log({
+      inputTokens,
+      embeddingMs,
+    });
+
     if (searchId) {
-      await upsertVectors(
-        "searches",
-        [{ id: searchId, values: embedding, metadata: { input } }],
-        pinecone
-      );
-      const saveSearchMs = Date.now() - pineconeStart - queryMs;
-      console.log({
-        inputTokens,
-        embeddingMs,
-        queryMs,
-        saveSearchMs,
-      });
       await ctx.runMutation(internal.searches.patch, {
         id: searchId,
         patch: {
@@ -78,49 +67,10 @@ export const search = action({
           // stats
           inputTokens,
           embeddingMs,
-          queryMs,
-          saveSearchMs,
         },
       });
     }
     return relatedChunks;
-  },
-});
-
-export const wordSearch = query({
-  args: { input: v.string(), count: v.number() },
-  handler: async (ctx, { input, count }) => {
-    const results = await ctx.db
-      .query("chunks")
-      .withSearchIndex("text", (q) => q.search("text", input))
-      .take(count);
-    return pruneNull(
-      await Promise.all(
-        results.map(async (chunk) => {
-          const source = await ctx.db.get(chunk.sourceId);
-          return source && { ...chunk, sourceName: source.name };
-        })
-      )
-    );
-  },
-});
-
-export const semanticSearch = query({
-  args: { searchId: v.id("searches") },
-  handler: async (ctx, { searchId }) => {
-    const search = await ctx.db.get(searchId);
-    if (!search) throw new Error("Unknown search " + searchId);
-    if (!search.relatedChunks) return null;
-    return pruneNull(
-      await Promise.all(
-        search.relatedChunks.map(async ({ id, score }) => {
-          const chunk = await ctx.db.get(id);
-          if (!chunk) return null;
-          const source = await ctx.db.get(chunk.sourceId);
-          return { ...chunk, score, sourceName: source!.name };
-        })
-      )
-    );
   },
 });
 

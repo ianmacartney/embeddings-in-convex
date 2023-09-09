@@ -4,9 +4,8 @@ import { defineSchema, defineTable } from "convex/server";
 export default defineSchema({
   // Chunks are one part of a Source, broken up to generate embeddings.
   chunks: defineTable({
-    // The Pinecone ID is the chunk's _id
-    // raw text: ~1k bytes or less
     text: v.string(),
+    embeddingId: v.optional(v.id("chunkEmbedding")),
     sourceId: v.id("sources"),
     // Where in a larger document is this text.
     chunkIndex: v.number(),
@@ -16,7 +15,9 @@ export default defineSchema({
     }),
     // Approx: estimated based on the total batch size.
     tokens: v.optional(v.number()),
-  }).searchIndex("text", { searchField: "text" }),
+  })
+    .searchIndex("text", { searchField: "text" })
+    .index("by_embedding", ["embeddingId"]),
 
   // Sources are materials to search over / compare, made of chunks of text.
   sources: defineTable({
@@ -30,6 +31,13 @@ export default defineSchema({
     embeddingMs: v.optional(v.number()),
   }),
 
+  chunkEmbedding: defineTable({
+    embedding: v.array(v.float64()),
+  }).vectorIndex("by_embedding", {
+    vectorField: "embedding",
+    dimensions: 1536,
+  }),
+
   // Searches track a comparison between an input string and related chunks.
   searches: defineTable({
     // The Pinecone ID is the search's _id
@@ -38,7 +46,7 @@ export default defineSchema({
     relatedChunks: v.optional(
       v.array(
         v.object({
-          id: v.id("chunks"),
+          id: v.id("chunkEmbedding"),
           score: v.optional(v.number()),
         })
       )
@@ -50,20 +58,4 @@ export default defineSchema({
     queryMs: v.optional(v.number()),
     saveSearchMs: v.optional(v.number()),
   }).index("input", ["input"]),
-
-  // Comparisons track a comparison between one chunk and other chunks.
-  comparisons: defineTable({
-    target: v.id("chunks"),
-    relatedChunks: v.optional(
-      v.array(
-        v.object({
-          id: v.id("chunks"),
-          score: v.optional(v.number()),
-        })
-      )
-    ),
-    // stats
-    count: v.number(),
-    queryMs: v.optional(v.number()),
-  }).index("target", ["target"]),
 });
