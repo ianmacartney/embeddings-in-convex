@@ -17,8 +17,8 @@ const loader = new DirectoryLoader(process.argv[2] || "../documents", {
 });
 
 // The Convex backend where we're uploading results
-const address = process.env.CONVEX_URL;
-if (!address) throw new Error("Specify CONVEX_URL env variable");
+const address = process.env.VITE_CONVEX_URL;
+if (!address) throw new Error("Specify VITE_CONVEX_URL env variable");
 const client = new ConvexHttpClient(address);
 
 export const uploadDocuments = async () => {

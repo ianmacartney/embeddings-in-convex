@@ -10,7 +10,8 @@ Setup:
 !playwright install
 """
 
-import os, sys
+import os
+import sys
 from dotenv import load_dotenv
 from convex import ConvexClient
 from langchain.document_loaders import PlaywrightURLLoader
@@ -29,9 +30,9 @@ texts = text_splitter.split_text(data[0].page_content)
 load_dotenv(".env.local")
 load_dotenv()
 
-backend = os.getenv("CONVEX_URL")
+backend = os.getenv("VITE_CONVEX_URL")
 if not backend:
-    raise KeyError("Missing CONVEX_URL")
+    raise KeyError("Missing VITE_CONVEX_URL")
 
 client = ConvexClient(backend)
 print(

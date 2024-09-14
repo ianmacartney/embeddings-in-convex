@@ -14,17 +14,19 @@ You can then use the queried source data to include in a ChatGPT prompt (WIP).
 ![](./screenshot.png)
 
 UI:
+
 - React
 - Tailwindcss
 - Rewind-UI
 - Vite
 
 Backend:
-- Pinecone for storing and querying vector embeddings.
+
 - OpenAI API for creating vector embeddings.
-- Convex for storing application data and running server-side functions.
+- Convex for storing vectors, application data, and running server-side functions.
 
 Work planned:
+
 - [x] Add a python script that scrapes URLs and imports the data.
 - [x] Add a node script that imports local files (.pdf, .md, .txt).
 - [ ] Allow picking which sources to use in a ChatGPT prompt, and what template to use, to iterate on templates.
@@ -35,18 +37,12 @@ Work planned:
 ### Prerequisites:
 
 1. A Convex backend: it will be configured automatically on `npm run dev`.
-  By running this first, you can enter environment variables for (2) and (3) on
-  the [dashboard](https://dashboard.convex.dev).
+   By running this first, you can enter environment variables for (2) and (3) on
+   the [dashboard](https://dashboard.convex.dev).
 
-2. A [Pinecone](https://app.pinecone.io/) API Key and Index. Free to start.
-  The only important configuration is to set the vector length to 1536
-  Environment variables:
-    - `PINECONE_INDEX_NAME` (for me, `embeddings-playground`)
-	- `PINECONE_ENVIRONMENT` (for me, `asia-southeast1-gcp-free`)
-    - `PINECONE_API_KEY` (a uuid, don't share this publicly)
-
-3. An [OpenAI](https://platform.openai.com/) API key.
-  Environment variable: `OPEN_API_KEY` (should start with `sk-`).
+2. An [OpenAI](https://platform.openai.com/) API key.
+   Environment variable: `OPEN_API_KEY` (should start with `sk-`).
+   Run `npx convex env set OPEN_API_KEY sk-XXXX # --prod`
 
 ## Run:
 
@@ -58,6 +54,7 @@ npm run dev
 ## Upload sources from a URL
 
 You can add a source from a URL using the scripts/addURL.py python script:
+
 ```sh
 pip install dotenv convex langchain
 python scripts/addURL.py https://example.com
@@ -68,7 +65,7 @@ python scripts/addURL.py https://example.com
 You can add .txt, .md, and .pdf files as sources to your project via:
 
 ```sh
-export CONVEX_URL= # your backend url - see .env.local (dev) or .env (prod)
+export VITE_CONVEX_URL= # your backend url - see .env.local (dev) or .env (prod)
 npx ts-node-esm scripts/addFiles.ts ./path/to/folder
 ```
 
