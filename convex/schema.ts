@@ -1,10 +1,10 @@
 import { v } from "convex/values";
 import { defineSchema, defineTable } from "convex/server";
+import { deprecated } from "convex-helpers/validators";
 
 export default defineSchema({
   // Chunks are one part of a Source, broken up to generate embeddings.
   chunks: defineTable({
-    // The Pinecone ID is the chunk's _id
     // raw text: ~1k bytes or less
     text: v.string(),
     sourceId: v.id("sources"),
@@ -16,14 +16,21 @@ export default defineSchema({
     }),
     // Approx: estimated based on the total batch size.
     tokens: v.optional(v.number()),
-  }).searchIndex("text", { searchField: "text" }),
+    embeddingId: v.optional(v.id("chunkEmbeddings")),
+  })
+    .searchIndex("text", { searchField: "text" })
+    .index("embeddingId", ["embeddingId"]),
+
+  chunkEmbeddings: defineTable({
+    vector: v.array(v.number()),
+  }).vectorIndex("vector", { vectorField: "vector", dimensions: 1536 }),
 
   // Sources are materials to search over / compare, made of chunks of text.
   sources: defineTable({
     name: v.string(),
     // Max 1k chunks (otherwise remove this and use an index on sourceId)
     chunkIds: v.array(v.id("chunks")),
-    // Whether the embeddings have been saved to Pinecone.
+    // Whether the embeddings have been saved.
     saved: v.boolean(),
     // stats
     totalTokens: v.optional(v.number()),
@@ -38,7 +45,7 @@ export default defineSchema({
     relatedChunks: v.optional(
       v.array(
         v.object({
-          id: v.id("chunks"),
+          id: v.id("chunkEmbeddings"),
           score: v.optional(v.number()),
         })
       )
@@ -48,8 +55,15 @@ export default defineSchema({
     inputTokens: v.optional(v.number()),
     embeddingMs: v.optional(v.number()),
     queryMs: v.optional(v.number()),
-    saveSearchMs: v.optional(v.number()),
-  }).index("input", ["input"]),
+    saveSearchMs: deprecated,
+    embeddingId: v.optional(v.id("searchEmbeddings")),
+  })
+    .index("input", ["input"])
+    .index("embeddingId", ["embeddingId"]),
+
+  searchEmbeddings: defineTable({
+    vector: v.array(v.number()),
+  }).vectorIndex("vector", { vectorField: "vector", dimensions: 1536 }),
 
   // Comparisons track a comparison between one chunk and other chunks.
   comparisons: defineTable({
@@ -57,7 +71,7 @@ export default defineSchema({
     relatedChunks: v.optional(
       v.array(
         v.object({
-          id: v.id("chunks"),
+          id: v.id("chunkEmbeddings"),
           score: v.optional(v.number()),
         })
       )

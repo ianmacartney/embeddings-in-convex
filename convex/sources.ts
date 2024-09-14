@@ -8,9 +8,11 @@ import {
   query,
 } from "./_generated/server";
 import { fetchEmbeddingBatch } from "./lib/embeddings";
-import { pineconeIndex, upsertVectors } from "./lib/pinecone";
 import { v, Infer } from "convex/values";
 import { Doc } from "./_generated/dataModel";
+import { crud } from "convex-helpers/server/crud";
+import schema from "./schema";
+import { getOrThrow } from "convex-helpers/server/relationships";
 
 const InputChunk = v.object({
   text: v.string(),
@@ -60,22 +62,19 @@ export const addEmbedding = internalAction({
     ctx,
     { source, texts }: { source: Doc<"sources">; texts: string[] }
   ) => {
-    const { embeddings, embeddingMs, totalTokens } = await fetchEmbeddingBatch(
-      texts
-    );
+    const { embeddings, embeddingMs, totalTokens } =
+      await fetchEmbeddingBatch(texts);
     console.log({
       batchSize: texts.length,
       totalTokens,
       embeddingMs,
     });
-    await upsertVectors(
-      "chunks",
-      source.chunkIds.map((id, chunkIndex) => ({
-        id,
-        values: embeddings[chunkIndex],
-        metadata: { sourceId: source._id, textLen: texts[chunkIndex].length },
-      }))
-    );
+    await ctx.runMutation(internal.sources.storeEmbeddings, {
+      embeddings: embeddings.map((embedding, idx) => ({
+        chunkId: source.chunkIds[idx],
+        embedding,
+      })),
+    });
     await ctx.runMutation(internal.sources.patch, {
       id: source._id,
       patch: { saved: true, totalTokens, embeddingMs },
@@ -102,34 +101,41 @@ export const addBatch = mutation({
   },
 });
 
+export function chunk<T>(items: T[], chunkSize?: number): T[][] {
+  const chunks = [];
+  const size = chunkSize || 100;
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
 export const addEmbeddingBatch = internalAction(
   async (
     ctx,
     { batch }: { batch: { source: Doc<"sources">; texts: string[] }[] }
   ) => {
-    // Calculate all the embeddings for all sources at once.
-    const { embeddings, totalTokens, embeddingMs } = await fetchEmbeddingBatch(
-      batch.flatMap(({ texts }) => texts)
+    const chunks = chunk(
+      batch.flatMap(({ texts, source }) =>
+        texts.map((text, i) => ({ text, chunkId: source.chunkIds[i] }))
+      )
     );
-    console.log({ batchSize: embeddings.length, totalTokens, embeddingMs });
-    const offsets = batch.reduce(
-      (acc, { texts }) => [...acc, acc[acc.length - 1] + texts.length],
-      [0]
-    );
-    const vectors = await Promise.all(
-      batch.map(({ source, texts }, idx) => {
-        const vectors = source.chunkIds.map((id, chunkIndex) => ({
-          id,
-          values: embeddings[offsets[idx] + chunkIndex],
-          metadata: { sourceId: source._id, textLen: texts[idx].length },
-        }));
-        return vectors;
-      })
-    );
-    await upsertVectors(
-      "chunks",
-      vectors.flatMap((vectors) => vectors)
-    );
+    let totalTokens_ = 0;
+    let embeddingMs_ = 0;
+    for (const chunkBatch of chunks) {
+      // Calculate all the embeddings for all sources at once.
+      const { embeddings, totalTokens, embeddingMs } =
+        await fetchEmbeddingBatch(chunkBatch.map(({ text }) => text));
+      totalTokens_ += totalTokens;
+      embeddingMs_ += embeddingMs;
+      console.log({ batchSize: embeddings.length, totalTokens, embeddingMs });
+      await ctx.runMutation(internal.sources.storeEmbeddings, {
+        embeddings: embeddings.map((embedding, i) => ({
+          chunkId: chunkBatch[i].chunkId,
+          embedding,
+        })),
+      });
+    }
     // The length of all strings put together.
     const totalLength = batch.reduce(
       (sum, { texts }) => sum + textLength(texts),
@@ -143,8 +149,8 @@ export const addEmbeddingBatch = internalAction(
           id: source._id,
           patch: {
             saved: true,
-            embeddingMs: Math.ceil(embeddingMs * portion),
-            totalTokens: Math.ceil(totalTokens * portion),
+            embeddingMs: Math.ceil(embeddingMs_ * portion),
+            totalTokens: Math.ceil(totalTokens_ * portion),
           },
         });
       })
@@ -152,16 +158,34 @@ export const addEmbeddingBatch = internalAction(
   }
 );
 
+export const storeEmbeddings = internalMutation({
+  args: {
+    embeddings: v.array(
+      v.object({ chunkId: v.id("chunks"), embedding: v.array(v.number()) })
+    ),
+  },
+  handler: async (ctx, args) => {
+    await Promise.all(
+      args.embeddings.map(async ({ chunkId, embedding }) => {
+        const chunk = await getOrThrow(ctx, chunkId);
+        if (chunk.embeddingId) {
+          await ctx.db.patch(chunk.embeddingId, { vector: embedding });
+        } else {
+          const embeddingId = await ctx.db.insert("chunkEmbeddings", {
+            vector: embedding,
+          });
+          await ctx.db.patch(chunkId, { embeddingId });
+        }
+      })
+    );
+  },
+});
+
 function textLength(texts: string[]) {
   return texts.reduce((sum, cur) => sum + cur.length, 0);
 }
 
-export const patch = internalMutation({
-  args: { id: v.id("sources"), patch: v.any() },
-  handler: async (ctx, { id, patch }) => {
-    return await ctx.db.patch(id, patch);
-  },
-});
+export const { update: patch } = crud(schema, "sources");
 
 export const paginate = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -193,17 +217,16 @@ export const deleteSource = mutation({
     const source = await ctx.db.get(id);
     if (!source) return;
     await ctx.db.delete(id);
-    await Promise.all(source.chunkIds.map(ctx.db.delete));
-    ctx.scheduler.runAfter(0, internal.sources.deletePineconeVectors, {
-      ids: source.chunkIds,
-    });
-  },
-});
-
-export const deletePineconeVectors = internalAction({
-  handler: async (_, { ids }: { ids: string[] }) => {
-    const pinecone = await pineconeIndex();
-    await pinecone.delete1({ namespace: "chunks", ids });
+    await Promise.all(
+      source.chunkIds.map(async (id) => {
+        const chunk = await ctx.db.get(id);
+        if (!chunk) return;
+        ctx.db.delete(id);
+        if (chunk.embeddingId) {
+          ctx.db.delete(chunk.embeddingId);
+        }
+      })
+    );
   },
 });
 

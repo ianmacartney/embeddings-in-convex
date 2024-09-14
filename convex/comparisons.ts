@@ -1,7 +1,10 @@
-import { Id } from "./_generated/dataModel";
-import { api, internal } from "./_generated/api";
-import { action, internalMutation, mutation, query } from "./_generated/server";
-import { pineconeIndex } from "./lib/pinecone";
+import { internal } from "./_generated/api";
+import {
+  internalAction,
+  internalMutation,
+  mutation,
+  query,
+} from "./_generated/server";
 import { v } from "convex/values";
 import { pruneNull } from "./lib/utils";
 
@@ -19,8 +22,13 @@ export const upsert = mutation({
       target,
       count: topK,
     });
-    await ctx.scheduler.runAfter(0, api.comparisons.compare, {
-      target,
+    const chunk = await ctx.db.get(target);
+    if (!chunk) throw new Error("Unknown chunk");
+    if (!chunk.embeddingId) throw new Error("Chunk has no embedding yet");
+    const embedding = await ctx.db.get(chunk.embeddingId);
+    if (!embedding) throw new Error("Unknown embedding");
+    await ctx.scheduler.runAfter(0, internal.comparisons.compare, {
+      vector: embedding.vector,
       comparisonId,
       topK,
     });
@@ -28,28 +36,24 @@ export const upsert = mutation({
   },
 });
 
-export const compare = action({
+export const compare = internalAction({
   args: {
-    target: v.id("chunks"),
+    vector: v.array(v.number()),
     comparisonId: v.optional(v.id("comparisons")),
     topK: v.number(),
   },
-  handler: async (ctx, { target, comparisonId, topK }) => {
-    const pineconeStart = Date.now();
-    const pinecone = await pineconeIndex();
-    const { matches } = await pinecone.query({
-      queryRequest: {
-        namespace: "chunks",
-        topK,
-        id: target,
-      },
+  handler: async (ctx, { vector, comparisonId, topK }) => {
+    const start = Date.now();
+    const matches = await ctx.vectorSearch("chunkEmbeddings", "vector", {
+      vector,
+      limit: topK,
     });
     if (!matches) throw new Error("Pinecone matches are empty");
-    const relatedChunks = matches.map(({ id, score }) => ({
-      id: id as Id<"chunks">,
-      score,
+    const relatedChunks = matches.map(({ _id, _score }) => ({
+      id: _id,
+      score: _score,
     }));
-    const queryMs = Date.now() - pineconeStart;
+    const queryMs = Date.now() - start;
     console.log({
       queryMs,
     });
@@ -79,14 +83,17 @@ export const get = query({
         ...comparison,
         relatedChunks: pruneNull(
           await Promise.all(
-            comparison.relatedChunks
-              .filter(({ id }) => id !== comparison.target)
-              .map(async ({ id, score }) => {
-                const chunk = await ctx.db.get(id);
-                if (!chunk) return null;
-                const source = await ctx.db.get(chunk.sourceId);
-                return { ...chunk, score, sourceName: source!.name };
-              })
+            comparison.relatedChunks.map(async ({ id, score }) => {
+              const chunk = await ctx.db
+                .query("chunks")
+                .withIndex("embeddingId", (q) => q.eq("embeddingId", id))
+                .unique();
+              if (chunk?._id === comparison.target) return null;
+              if (!chunk) throw new Error("Unknown chunk for embedding" + id);
+              const source = await ctx.db.get(chunk.sourceId);
+              if (!source) throw new Error("Unknown source" + chunk.sourceId);
+              return { ...chunk, score, sourceName: source!.name };
+            })
           )
         ),
         target: {
