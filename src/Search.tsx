@@ -146,7 +146,7 @@ export function PreviousSearches({
   const { status, loadMore, results } = usePaginatedQuery(
     api.searches.paginate,
     {},
-    { initialNumItems: 10 }
+    { initialNumItems: 10 },
   );
   const search = useAction(api.searches.search);
   return (
@@ -158,7 +158,7 @@ export function PreviousSearches({
             <Table.Th align="left">Tokens</Table.Th>
             <Table.Th align="left">Results</Table.Th>
             <Table.Th align="left">Embedding</Table.Th>
-            <Table.Th align="left">Pinecone</Table.Th>
+            <Table.Th align="left">Search</Table.Th>
             <Table.Th align="left"></Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -189,7 +189,7 @@ export function PreviousSearches({
                       topK: result.count,
                       searchId: result._id,
                     }).then(() =>
-                      reuseSearch({ text: result.input, searchId: result._id })
+                      reuseSearch({ text: result.input, searchId: result._id }),
                     )
                   }
                   color="red"

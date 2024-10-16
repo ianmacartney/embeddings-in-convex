@@ -39,7 +39,6 @@ export default defineSchema({
 
   // Searches track a comparison between an input string and related chunks.
   searches: defineTable({
-    // The Pinecone ID is the search's _id
     input: v.string(),
     float32Buffer: v.optional(v.bytes()),
     relatedChunks: v.optional(
@@ -47,8 +46,8 @@ export default defineSchema({
         v.object({
           id: v.id("chunkEmbeddings"),
           score: v.optional(v.number()),
-        })
-      )
+        }),
+      ),
     ),
     // stats
     count: v.number(),
@@ -73,8 +72,8 @@ export default defineSchema({
         v.object({
           id: v.id("chunkEmbeddings"),
           score: v.optional(v.number()),
-        })
-      )
+        }),
+      ),
     ),
     // stats
     count: v.number(),

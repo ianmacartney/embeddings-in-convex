@@ -1,4 +1,4 @@
-# Embeddings Playground with Pinecone, OpenAI, and Convex
+# Embeddings Playground with OpenAI and Convex
 
 An example of working with embeddings and vector databases in Convex.
 

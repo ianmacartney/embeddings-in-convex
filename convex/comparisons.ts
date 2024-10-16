@@ -48,7 +48,7 @@ export const compare = internalAction({
       vector,
       limit: topK,
     });
-    if (!matches) throw new Error("Pinecone matches are empty");
+    if (!matches) throw new Error("Vector search matches are empty");
     const relatedChunks = matches.map(({ _id, _score }) => ({
       id: _id,
       score: _score,
@@ -93,8 +93,8 @@ export const get = query({
               const source = await ctx.db.get(chunk.sourceId);
               if (!source) throw new Error("Unknown source" + chunk.sourceId);
               return { ...chunk, score, sourceName: source!.name };
-            })
-          )
+            }),
+          ),
         ),
         target: {
           ...target,
